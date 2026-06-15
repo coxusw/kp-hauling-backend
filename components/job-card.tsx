@@ -101,15 +101,15 @@ export function JobCard({ job, onDelete, onPaymentChange, onUpdate, onStatusChan
       </div>
 
       <div className="mt-4 grid grid-cols-2 gap-2 text-xs font-semibold sm:grid-cols-4">
-        <span className="rounded bg-kp-paper px-2 py-2 text-stone-700">Base {currency(job.price)}</span>
-        <span className="rounded bg-kp-paper px-2 py-2 text-stone-700">Charges {currency(getJobChargesTotal(job))}</span>
-        <span className="rounded bg-kp-paper px-2 py-2 text-stone-700">Paid {currency(paid)}</span>
-        <span className="rounded bg-kp-paper px-2 py-2 text-stone-700">Owed {currency(balance)}</span>
+        <span className="kp-chip bg-kp-paper text-stone-700">Base {currency(job.price)}</span>
+        <span className="kp-chip bg-kp-paper text-stone-700">Charges {currency(getJobChargesTotal(job))}</span>
+        <span className="kp-chip bg-kp-paper text-stone-700">Paid {currency(paid)}</span>
+        <span className="kp-chip bg-kp-paper text-stone-700">Owed {currency(balance)}</span>
       </div>
 
       <div className="mt-3 flex flex-wrap items-center gap-2 text-xs font-semibold">
         {onPaymentChange ? (
-          <label className="flex items-center gap-2 rounded bg-kp-paper px-2 py-1 text-stone-700">
+          <label className="inline-flex min-h-8 items-center justify-center gap-2 rounded bg-kp-paper px-2 py-1 text-center text-stone-700">
             <span>Payment</span>
             <select
               value={job.paymentStatus}
@@ -124,9 +124,9 @@ export function JobCard({ job, onDelete, onPaymentChange, onUpdate, onStatusChan
             </select>
           </label>
         ) : (
-          <span className="rounded bg-kp-paper px-2 py-1 text-stone-700">{job.paymentStatus}</span>
+          <span className="kp-chip bg-kp-paper text-stone-700">{job.paymentStatus}</span>
         )}
-        <span className="rounded bg-kp-paper px-2 py-1 text-stone-700">Total {currency(total)}</span>
+        <span className="kp-chip bg-kp-paper text-stone-700">Total {currency(total)}</span>
       </div>
 
       {job.charges?.length ? (

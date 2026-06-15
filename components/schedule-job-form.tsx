@@ -123,7 +123,7 @@ export function ScheduleJobForm({ dumpsters, jobs, onAdd }: ScheduleJobFormProps
         <label className="block text-sm font-semibold text-stone-700 sm:col-span-2">
           <span className="flex flex-wrap items-center gap-2">
             <span>One-way Mileage</span>
-            <span className="rounded bg-kp-paper px-2 py-1 text-xs font-medium text-stone-600 ring-1 ring-kp-line">
+            <span className="kp-chip bg-kp-paper text-stone-600 ring-1 ring-kp-line">
               <span className="font-bold text-kp-ink">Route:</span>{" "}
               {selectedDumpster ? (
                 <span className="inline-flex items-center gap-1.5 align-middle">

@@ -127,14 +127,16 @@ export default function LogPage() {
 
   function exportJobs() {
     downloadCsv("kp-hauling-job-log.csv", [
-      ["Job #", "Customer", "Dumpster", "Completed", "Drop-off Mileage", "Pickup Mileage", "Total Mileage", "Billed", "Collected", "Balances Owed", "Payment Status", "Address", "Pickup Destination"],
+      ["Job #", "Customer", "Dumpster", "Completed", "Drop-off Miles To Job", "Drop-off Return Miles", "Pickup Miles To Job", "Pickup Return Miles", "Total Mileage", "Billed", "Collected", "Balances Owed", "Payment Status", "Address", "Pickup Destination"],
       ...filteredJobs.map((job) => [
         job.jobNumber,
         job.customerName,
         job.dumpsterNumber,
         job.actualPickupDate ?? job.expectedPickupDate,
         job.estimatedOneWayMiles ?? 0,
+        job.deliveryReturnMiles ?? 0,
         job.pickupOneWayMiles ?? 0,
+        job.pickupReturnMiles ?? 0,
         getJobMileageTotal(job),
         getJobTotal(job),
         getJobPaymentsTotal(job),

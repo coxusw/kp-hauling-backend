@@ -100,8 +100,10 @@ export type RentalJob = {
   pickupDriverPayNotes?: string;
   startingDumpsterAddress?: string;
   estimatedOneWayMiles?: number;
+  deliveryReturnMiles?: number;
   pickupDestinationAddress?: string;
   pickupOneWayMiles?: number;
+  pickupReturnMiles?: number;
   dropOffDate: string;
   dropOffTime?: string;
   rentalLengthDays: number;

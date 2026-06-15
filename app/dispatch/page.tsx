@@ -30,7 +30,7 @@ export default function DispatchPage() {
           <section key={status} className="rounded border border-kp-line bg-kp-paper p-3">
             <div className="mb-3 flex items-center justify-between gap-2">
               <StatusBadge status={status} />
-              <span className="rounded bg-white px-2 py-1 text-xs font-bold text-stone-600">{grouped[status].length}</span>
+              <span className="kp-chip bg-white text-stone-600">{grouped[status].length}</span>
             </div>
             <div className="space-y-2">
               {grouped[status].map((item) =>

@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useMemo, useState } from "react";
-import { Check, Clock, MapPin, PackageCheck, Phone, Truck } from "lucide-react";
+import { Check, Clock, Info, MapPin, PackageCheck, Phone, Truck } from "lucide-react";
 import { displayDate, displayTime } from "@/lib/data";
 import type { RentalJob, TruckType } from "@/lib/types";
 import { PageHeader } from "@/components/page-header";
@@ -13,7 +13,7 @@ import { useAuth } from "@/components/auth-provider";
 type DriverTaskProps = {
   job: RentalJob;
   type: "delivery" | "pickup";
-  onComplete: (jobId: string, type: "delivery" | "pickup", completedAt: string, notes: string, cashCollected: number, truckType: TruckType, companyMiles?: number) => void;
+  onComplete: (jobId: string, type: "delivery" | "pickup", completedAt: string, notes: string, cashCollected: number, truckType: TruckType, outboundMiles?: number, returnMiles?: number) => void;
 };
 
 function DriverTask({ job, type, onComplete }: DriverTaskProps) {
@@ -22,16 +22,31 @@ function DriverTask({ job, type, onComplete }: DriverTaskProps) {
   const [notes, setNotes] = useState("");
   const [cashCollected, setCashCollected] = useState("");
   const [truckType, setTruckType] = useState<TruckType>("Company Truck");
-  const [companyMiles, setCompanyMiles] = useState(isDelivery ? job.estimatedOneWayMiles?.toString() ?? "" : job.pickupOneWayMiles?.toString() ?? "");
+  const [outboundMiles, setOutboundMiles] = useState(isDelivery ? job.estimatedOneWayMiles?.toString() ?? "" : job.pickupOneWayMiles?.toString() ?? "");
+  const [returnMiles, setReturnMiles] = useState(isDelivery ? job.deliveryReturnMiles?.toString() ?? "" : job.pickupReturnMiles?.toString() ?? "");
+  const [showMileageHelp, setShowMileageHelp] = useState(false);
   const dispatchNotes = isDelivery ? job.deliveryDispatchNotes : job.pickupDispatchNotes;
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const miles = companyMiles === "" ? undefined : Number(companyMiles);
-    if (!completedAt || !notes.trim() || (truckType === "Company Truck" && (miles === undefined || !Number.isFinite(miles) || miles < 0))) {
+    const outbound = outboundMiles === "" ? undefined : Number(outboundMiles);
+    const returning = returnMiles === "" ? undefined : Number(returnMiles);
+    const missingCompanyMileage =
+      truckType === "Company Truck" &&
+      (outbound === undefined || returning === undefined || !Number.isFinite(outbound) || !Number.isFinite(returning) || outbound < 0 || returning < 0);
+    if (!completedAt || !notes.trim() || missingCompanyMileage) {
       return;
     }
-    onComplete(job.id, type, completedAt, notes, Number(cashCollected) || 0, truckType, truckType === "Company Truck" ? miles : undefined);
+    onComplete(
+      job.id,
+      type,
+      completedAt,
+      notes,
+      Number(cashCollected) || 0,
+      truckType,
+      truckType === "Company Truck" ? outbound : undefined,
+      truckType === "Company Truck" ? returning : undefined
+    );
   }
 
   return (
@@ -68,7 +83,24 @@ function DriverTask({ job, type, onComplete }: DriverTaskProps) {
       </div>
 
       <form onSubmit={submit} className="mt-4 rounded border border-kp-line bg-kp-paper p-3">
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[130px_140px_130px_1fr]">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded border border-kp-line bg-white px-3 py-2">
+          <p className="text-sm font-bold text-kp-ink">Route Mileage</p>
+          <button
+            type="button"
+            onClick={() => setShowMileageHelp((current) => !current)}
+            className="inline-flex min-h-8 items-center justify-center gap-1 rounded border border-kp-line bg-kp-paper px-2 text-xs font-bold text-stone-700"
+            aria-expanded={showMileageHelp}
+          >
+            <Info aria-hidden className="h-4 w-4 text-kp-green" />
+            Mileage help
+          </button>
+          {showMileageHelp ? (
+            <div className="w-full rounded bg-kp-paper p-3 text-sm leading-5 text-stone-700">
+              Track only the company-truck miles for this route. Enter the miles driven to the customer/job location, then the miles driven back to the yard or normal dumpster storage location. If the dumpster goes straight to another drop-off, do not include that next-job travel here. Add those miles to the next job instead.
+            </div>
+          ) : null}
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[130px_140px_120px_120px_1fr]">
           <label className="block text-sm font-bold text-stone-700">
             Actual Time
             <input
@@ -91,15 +123,43 @@ function DriverTask({ job, type, onComplete }: DriverTaskProps) {
             </select>
           </label>
           <label className="block text-sm font-bold text-stone-700">
-            {isDelivery ? "Drop-off Miles" : "Pickup Miles"}
+            <span className="inline-flex items-center gap-1">
+              {isDelivery ? "To Drop-off" : "To Pickup"}
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.preventDefault();
+                  setShowMileageHelp((current) => !current);
+                }}
+                className="inline-flex h-6 w-6 items-center justify-center rounded border border-kp-line bg-white text-kp-green"
+                aria-label="Mileage help"
+                aria-expanded={showMileageHelp}
+              >
+                <Info aria-hidden className="h-3.5 w-3.5" />
+              </button>
+            </span>
             <input
               type="number"
               min={0}
               step="0.1"
               required={truckType === "Company Truck"}
               disabled={truckType === "Personal Truck"}
-              value={companyMiles}
-              onChange={(event) => setCompanyMiles(event.target.value)}
+              value={outboundMiles}
+              onChange={(event) => setOutboundMiles(event.target.value)}
+              placeholder={truckType === "Company Truck" ? "0.0" : "Personal"}
+              className="mt-1 min-h-10 w-full rounded border border-kp-line bg-white px-3 text-sm text-kp-ink disabled:bg-stone-100 disabled:text-stone-500"
+            />
+          </label>
+          <label className="block text-sm font-bold text-stone-700">
+            Return To Yard
+            <input
+              type="number"
+              min={0}
+              step="0.1"
+              required={truckType === "Company Truck"}
+              disabled={truckType === "Personal Truck"}
+              value={returnMiles}
+              onChange={(event) => setReturnMiles(event.target.value)}
               placeholder={truckType === "Company Truck" ? "0.0" : "Personal"}
               className="mt-1 min-h-10 w-full rounded border border-kp-line bg-white px-3 text-sm text-kp-ink disabled:bg-stone-100 disabled:text-stone-500"
             />
@@ -185,12 +245,12 @@ export default function DriverPage() {
     pickups: operations.jobs.filter((job) => ["Delivered", "Pickup Needed", "Overdue"].includes(job.status) && !job.pickupDriverId)
   }), [operations.jobs]);
 
-  function completeTask(jobId: string, type: "delivery" | "pickup", completedAt: string, notes: string, cashCollected: number, truckType: TruckType, companyMiles?: number) {
+  function completeTask(jobId: string, type: "delivery" | "pickup", completedAt: string, notes: string, cashCollected: number, truckType: TruckType, outboundMiles?: number, returnMiles?: number) {
     // Future Supabase integration point: update the rental job and dumpster status in one transaction.
     if (type === "delivery") {
-      operations.completeDelivery(jobId, auth.currentUser?.name, completedAt, notes, cashCollected, auth.currentUser?.id, truckType, companyMiles);
+      operations.completeDelivery(jobId, auth.currentUser?.name, completedAt, notes, cashCollected, auth.currentUser?.id, truckType, outboundMiles, returnMiles);
     } else {
-      operations.completePickup(jobId, auth.currentUser?.name, completedAt, notes, cashCollected, auth.currentUser?.id, truckType, companyMiles);
+      operations.completePickup(jobId, auth.currentUser?.name, completedAt, notes, cashCollected, auth.currentUser?.id, truckType, outboundMiles, returnMiles);
     }
   }
 

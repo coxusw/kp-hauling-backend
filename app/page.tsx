@@ -59,7 +59,7 @@ export default function DashboardPage() {
         <Section
           title="Priority Work"
           action={
-            <Link href="/dispatch" className="rounded border border-kp-line bg-white px-3 py-2 text-sm font-semibold hover:border-kp-green">
+            <Link href="/dispatch" className="inline-flex min-h-10 items-center justify-center rounded border border-kp-line bg-white px-3 py-2 text-center text-sm font-semibold hover:border-kp-green">
               Open dispatch
             </Link>
           }
@@ -106,7 +106,7 @@ export default function DashboardPage() {
                   <button
                     type="button"
                     onClick={() => operations.clearOwnerNotification(notification.id)}
-                    className="rounded border border-kp-line px-2 py-1 text-xs font-bold text-stone-600"
+                    className="kp-chip border border-kp-line text-stone-600"
                   >
                     Clear
                   </button>

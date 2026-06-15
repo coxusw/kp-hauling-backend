@@ -160,7 +160,7 @@ export function DispatchJobCard({
           <p className="text-xs font-bold uppercase tracking-normal text-stone-500">
             Dispatch {isPickupDispatch ? "Pickup" : "Delivery"}
           </p>
-          {assignedDriver ? <span className="rounded bg-white px-2 py-1 text-[11px] font-bold text-kp-green">{assignedDriver}</span> : <span className="rounded bg-white px-2 py-1 text-[11px] font-bold text-amber-700">Not dispatched</span>}
+          {assignedDriver ? <span className="kp-chip-sm bg-white text-kp-green">{assignedDriver}</span> : <span className="kp-chip-sm bg-white text-amber-700">Not dispatched</span>}
         </div>
         <div className="grid gap-2">
           <label className="block text-xs font-bold text-stone-700">
@@ -212,13 +212,13 @@ export function DispatchJobCard({
       </form>
 
       <div className="mt-2 grid grid-cols-2 gap-1 text-[11px] font-bold sm:grid-cols-4">
-        <span className="rounded bg-kp-paper px-2 py-1 text-stone-700">Paid {currency(paid)}</span>
-        <span className="rounded bg-kp-paper px-2 py-1 text-stone-700">Owed {currency(balance)}</span>
-        <span className="rounded bg-kp-paper px-2 py-1 text-stone-700">{job.paymentStatus}</span>
+        <span className="kp-chip-sm bg-kp-paper text-stone-700">Paid {currency(paid)}</span>
+        <span className="kp-chip-sm bg-kp-paper text-stone-700">Owed {currency(balance)}</span>
+        <span className="kp-chip-sm bg-kp-paper text-stone-700">{job.paymentStatus}</span>
         <select
           value={job.paymentStatus}
           onChange={(event) => onPaymentChange(job.id, event.target.value as PaymentStatus)}
-          className="rounded border border-kp-line bg-white px-1 py-1 text-[11px] font-bold text-kp-ink"
+          className="min-h-7 rounded border border-kp-line bg-white px-1 py-1 text-center text-[11px] font-bold leading-tight text-kp-ink"
           aria-label="Payment status"
         >
           <option>Unpaid</option>

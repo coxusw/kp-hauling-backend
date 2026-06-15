@@ -85,7 +85,7 @@ function DriverMoneyActions({
             <Field label="Amount" type="number" min={0} step="0.01" max={Math.max(cashHeld, 0)} value={handoffAmount} onChange={(event) => setHandoffAmount(event.target.value)} />
             <Field label="Notes" value={handoffNotes} onChange={(event) => setHandoffNotes(event.target.value)} placeholder="Turned in to owner" />
           </div>
-          <button type="submit" disabled={cashHeld <= 0} className="mt-2 min-h-9 rounded bg-white px-3 text-xs font-bold text-stone-700 ring-1 ring-kp-line disabled:cursor-not-allowed disabled:bg-stone-100 disabled:text-stone-400">
+          <button type="submit" disabled={cashHeld <= 0} className="mt-2 inline-flex min-h-9 items-center justify-center rounded bg-white px-3 text-center text-xs font-bold text-stone-700 ring-1 ring-kp-line disabled:cursor-not-allowed disabled:bg-stone-100 disabled:text-stone-400">
             Mark Collected
           </button>
         </form>
@@ -110,7 +110,7 @@ function DriverMoneyActions({
           <div className="mt-2">
             <Field label="Notes" value={payNotes} onChange={(event) => setPayNotes(event.target.value)} placeholder="Route pay, cash, check..." />
           </div>
-          <button type="submit" disabled={payableRoutes.length === 0} className="mt-2 min-h-9 rounded bg-white px-3 text-xs font-bold text-stone-700 ring-1 ring-kp-line disabled:cursor-not-allowed disabled:bg-stone-100 disabled:text-stone-400">
+          <button type="submit" disabled={payableRoutes.length === 0} className="mt-2 inline-flex min-h-9 items-center justify-center rounded bg-white px-3 text-center text-xs font-bold text-stone-700 ring-1 ring-kp-line disabled:cursor-not-allowed disabled:bg-stone-100 disabled:text-stone-400">
             Mark Route Paid
           </button>
         </form>
@@ -233,7 +233,7 @@ export default function DriversPage() {
                   <p className="text-xs text-stone-500">{user.email}</p>
                 </div>
                 <p>{user.phone || "No phone"}</p>
-                <p className="rounded bg-kp-paper px-2 py-1 text-xs font-bold capitalize text-stone-700">{user.role}</p>
+                <p className="kp-chip bg-kp-paper capitalize text-stone-700">{user.role}</p>
                 <p className="text-xs font-semibold text-stone-600">{(user.availabilityWindows ?? []).length} windows</p>
                 <button
                   type="button"

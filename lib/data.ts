@@ -67,7 +67,7 @@ export function getJobBalance(job: RentalJob) {
 }
 
 export function getJobMileageTotal(job: RentalJob) {
-  return (job.estimatedOneWayMiles ?? 0) + (job.pickupOneWayMiles ?? 0);
+  return (job.estimatedOneWayMiles ?? 0) + (job.deliveryReturnMiles ?? 0) + (job.pickupOneWayMiles ?? 0) + (job.pickupReturnMiles ?? 0);
 }
 
 export function displayDate(date: string) {

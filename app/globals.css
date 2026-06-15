@@ -19,3 +19,13 @@ button,
 a {
   -webkit-tap-highlight-color: transparent;
 }
+
+@layer components {
+  .kp-chip {
+    @apply inline-flex min-h-8 items-center justify-center rounded px-2 py-1 text-center text-xs font-bold leading-tight;
+  }
+
+  .kp-chip-sm {
+    @apply inline-flex min-h-7 items-center justify-center rounded px-2 py-1 text-center text-[11px] font-bold leading-tight;
+  }
+}

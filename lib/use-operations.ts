@@ -373,7 +373,8 @@ export function useOperations() {
         cashCollected?: number,
         driverId?: string,
         truckType?: TruckType,
-        companyMiles?: number
+        outboundMiles?: number,
+        returnMiles?: number
       ) {
         const deliveredJob = jobs.find((job) => job.id === jobId);
         setJobs((current) => current.map((job) => {
@@ -397,7 +398,8 @@ export function useOperations() {
             deliveryTruckType: truckType,
             deliveryCompletedAt: completedAt,
             deliveryCompletionNotes: notes?.trim(),
-            estimatedOneWayMiles: truckType === "Company Truck" ? companyMiles : job.estimatedOneWayMiles,
+            estimatedOneWayMiles: truckType === "Company Truck" ? outboundMiles : job.estimatedOneWayMiles,
+            deliveryReturnMiles: truckType === "Company Truck" ? returnMiles : job.deliveryReturnMiles,
             payments
           };
           return {
@@ -423,7 +425,7 @@ export function useOperations() {
               id: makeId("note"),
               createdAt: new Date().toISOString(),
               title: `${driverName || deliveredJob.deliveryDriverName || "Driver"} dropped off dumpster ${deliveredJob.dumpsterNumber ?? "Unassigned"}`,
-              detail: `${notes?.trim() || "No driver notes entered."}${truckType ? ` ${truckType}.` : ""}${truckType === "Company Truck" && companyMiles !== undefined ? ` Business miles: ${companyMiles}.` : ""}${cashCollected && cashCollected > 0 ? ` Cash collected: $${cashCollected}.` : ""}`
+              detail: `${notes?.trim() || "No driver notes entered."}${truckType ? ` ${truckType}.` : ""}${truckType === "Company Truck" && outboundMiles !== undefined && returnMiles !== undefined ? ` Business miles: ${(outboundMiles + returnMiles).toFixed(1)}.` : ""}${cashCollected && cashCollected > 0 ? ` Cash collected: $${cashCollected}.` : ""}`
             },
             ...current
           ]);
@@ -437,7 +439,8 @@ export function useOperations() {
         cashCollected?: number,
         driverId?: string,
         truckType?: TruckType,
-        companyMiles?: number
+        outboundMiles?: number,
+        returnMiles?: number
       ) {
         const pickupJob = jobs.find((job) => job.id === jobId);
         const destination = pickupJob?.pickupDestinationAddress?.trim() || "KP yard";
@@ -465,7 +468,8 @@ export function useOperations() {
                   pickupTruckType: truckType,
                   pickupCompletedAt: completedAt,
                   pickupCompletionNotes: notes?.trim(),
-                  pickupOneWayMiles: truckType === "Company Truck" ? companyMiles : job.pickupOneWayMiles,
+                  pickupOneWayMiles: truckType === "Company Truck" ? outboundMiles : job.pickupOneWayMiles,
+                  pickupReturnMiles: truckType === "Company Truck" ? returnMiles : job.pickupReturnMiles,
                   payments
                 };
             return {
@@ -494,7 +498,7 @@ export function useOperations() {
               id: makeId("note"),
               createdAt: new Date().toISOString(),
               title: `${driverName || pickupJob.pickupDriverName || "Driver"} picked up dumpster ${pickupJob.dumpsterNumber ?? "Unassigned"}`,
-              detail: `${notes?.trim() || "No driver notes entered."}${truckType ? ` ${truckType}.` : ""}${truckType === "Company Truck" && companyMiles !== undefined ? ` Business miles: ${companyMiles}.` : ""}${cashCollected && cashCollected > 0 ? ` Cash collected: $${cashCollected}.` : ""}`
+              detail: `${notes?.trim() || "No driver notes entered."}${truckType ? ` ${truckType}.` : ""}${truckType === "Company Truck" && outboundMiles !== undefined && returnMiles !== undefined ? ` Business miles: ${(outboundMiles + returnMiles).toFixed(1)}.` : ""}${cashCollected && cashCollected > 0 ? ` Cash collected: $${cashCollected}.` : ""}`
             },
             ...current
           ]);

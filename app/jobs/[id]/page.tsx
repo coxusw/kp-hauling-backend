@@ -181,9 +181,11 @@ export default function JobEditPage() {
             </SelectField>
             <Field label="Rental Length Days" type="number" min={1} value={form.rentalLengthDays ?? 0} onChange={(event) => update("rentalLengthDays", Number(event.target.value))} />
             <Field label="Starting Dumpster Address" value={form.startingDumpsterAddress ?? ""} onChange={(event) => update("startingDumpsterAddress", event.target.value)} />
-            <Field label="Drop-off Mileage" type="number" min={0} step="0.1" value={form.estimatedOneWayMiles ?? ""} onChange={(event) => update("estimatedOneWayMiles", event.target.value === "" ? undefined : Number(event.target.value))} />
+            <Field label="Drop-off Miles To Job" type="number" min={0} step="0.1" value={form.estimatedOneWayMiles ?? ""} onChange={(event) => update("estimatedOneWayMiles", event.target.value === "" ? undefined : Number(event.target.value))} />
+            <Field label="Drop-off Return To Yard" type="number" min={0} step="0.1" value={form.deliveryReturnMiles ?? ""} onChange={(event) => update("deliveryReturnMiles", event.target.value === "" ? undefined : Number(event.target.value))} />
             <Field label="Pickup Destination" value={form.pickupDestinationAddress ?? ""} onChange={(event) => update("pickupDestinationAddress", event.target.value)} placeholder="KP yard, next job, disposal site..." />
-            <Field label="Pickup Mileage" type="number" min={0} step="0.1" value={form.pickupOneWayMiles ?? ""} onChange={(event) => update("pickupOneWayMiles", event.target.value === "" ? undefined : Number(event.target.value))} />
+            <Field label="Pickup Miles To Job" type="number" min={0} step="0.1" value={form.pickupOneWayMiles ?? ""} onChange={(event) => update("pickupOneWayMiles", event.target.value === "" ? undefined : Number(event.target.value))} />
+            <Field label="Pickup Return To Yard" type="number" min={0} step="0.1" value={form.pickupReturnMiles ?? ""} onChange={(event) => update("pickupReturnMiles", event.target.value === "" ? undefined : Number(event.target.value))} />
           </div>
 
           <div className="mt-3">
@@ -232,8 +234,10 @@ export default function JobEditPage() {
             <div className="mt-3 space-y-3 text-sm text-stone-700">
               <p><span className="font-bold">Drop-off:</span> {displayDate(job.dropOffDate)} {job.dropOffTime}</p>
               <p><span className="font-bold">Drop-off truck:</span> {job.deliveryTruckType || "Not completed"}</p>
+              <p><span className="font-bold">Drop-off miles:</span> {(job.estimatedOneWayMiles ?? 0).toFixed(1)} to job / {(job.deliveryReturnMiles ?? 0).toFixed(1)} return</p>
               <p><span className="font-bold">Pickup:</span> {displayDate(job.expectedPickupDate)} {job.expectedPickupTime}</p>
               <p><span className="font-bold">Pickup truck:</span> {job.pickupTruckType || "Not completed"}</p>
+              <p><span className="font-bold">Pickup miles:</span> {(job.pickupOneWayMiles ?? 0).toFixed(1)} to job / {(job.pickupReturnMiles ?? 0).toFixed(1)} return</p>
               <p><span className="font-bold">Destination:</span> {job.pickupDestinationAddress || "Not entered"}</p>
               <div>
                 <p className="font-bold text-kp-ink">Charges</p>
