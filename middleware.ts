@@ -11,7 +11,17 @@ function stripBasePath(pathname: string) {
 }
 
 function isAsset(pathname: string) {
-  return pathname.includes("/_next/") || pathname.endsWith(".ico") || pathname.endsWith(".png") || pathname.endsWith(".svg");
+  return (
+    pathname.includes("/_next/") ||
+    pathname.endsWith(".ico") ||
+    pathname.endsWith(".jpg") ||
+    pathname.endsWith(".jpeg") ||
+    pathname.endsWith(".png") ||
+    pathname.endsWith(".svg") ||
+    pathname.endsWith(".webp") ||
+    pathname.endsWith(".woff") ||
+    pathname.endsWith(".woff2")
+  );
 }
 
 export function middleware(request: NextRequest) {
