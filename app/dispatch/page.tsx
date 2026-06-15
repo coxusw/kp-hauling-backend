@@ -8,12 +8,13 @@ import { boardStatuses, groupJobsForBoard, isDumpster } from "@/lib/data";
 import { useOperations } from "@/lib/use-operations";
 import { LoadingPanel } from "@/components/loading-panel";
 import { useAuth } from "@/components/auth-provider";
+import { canManageOperations } from "@/lib/auth";
 
 export default function DispatchPage() {
   const operations = useOperations();
   const auth = useAuth();
   const grouped = groupJobsForBoard(operations.dumpsters, operations.jobs);
-  const drivers = auth.users.filter((user) => user.role === "driver");
+  const drivers = auth.users.filter((user) => user.role === "driver" || canManageOperations(user.role));
 
   return (
     <>

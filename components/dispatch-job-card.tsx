@@ -3,7 +3,7 @@
 import { FormEvent, useState } from "react";
 import Link from "next/link";
 import { ArrowRight, CalendarDays, Edit2, MapPin, Milestone, PackageCheck, Phone, Plus, Send, Trash2 } from "lucide-react";
-import { getDriverWindowsForDate, isDriverAvailableOnDate, type AppUser } from "@/lib/auth";
+import { canManageOperations, getDriverWindowsForDate, isDriverAvailableOnDate, type AppUser } from "@/lib/auth";
 import { currency, displayDate, displayTime, getJobBalance, getJobMileageTotal } from "@/lib/data";
 import type { PaymentStatus, RentalJob } from "@/lib/types";
 import { Field } from "@/components/form-fields";
@@ -43,7 +43,7 @@ export function DispatchJobCard({
   const dispatchDateDefault = isPickupDispatch ? job.expectedPickupDate : job.dropOffDate;
   const [dispatchDate, setDispatchDate] = useState(dispatchDateDefault);
   const [dispatchDriverId, setDispatchDriverId] = useState(isPickupDispatch ? job.pickupDriverId ?? "" : job.deliveryDriverId ?? "");
-  const availableDrivers = drivers.filter((driver) => isDriverAvailableOnDate(driver, dispatchDate));
+  const availableDrivers = drivers.filter((driver) => canManageOperations(driver.role) || isDriverAvailableOnDate(driver, dispatchDate));
   const assignedDriver = isPickupDispatch ? job.pickupDriverName : job.deliveryDriverName;
   const balance = getJobBalance(job);
 
@@ -173,7 +173,9 @@ export function DispatchJobCard({
               <option value="">Select driver</option>
               {availableDrivers.map((driver) => (
                 <option key={driver.id} value={driver.id}>
-                  {driver.name} ({getDriverWindowsForDate(driver, dispatchDate).map((window) => `${window.startTime}-${window.endTime}`).join(", ")})
+                  {canManageOperations(driver.role)
+                    ? `${driver.name} (${driver.role})`
+                    : `${driver.name} (${getDriverWindowsForDate(driver, dispatchDate).map((window) => `${window.startTime}-${window.endTime}`).join(", ")})`}
                 </option>
               ))}
             </select>
