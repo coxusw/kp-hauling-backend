@@ -2,11 +2,10 @@
 
 import { AlertTriangle, CalendarClock, CheckCircle2, Clock, PackageCheck, Route, Trash2, Truck, Warehouse } from "lucide-react";
 import Link from "next/link";
-import { getAlerts, getDashboardStats } from "@/lib/data";
+import { currency, displayDate, displayTime, getAlerts, getDashboardStats, getJobBalance } from "@/lib/data";
 import { MetricCard } from "@/components/metric-card";
 import { PageHeader } from "@/components/page-header";
 import { Section } from "@/components/section";
-import { JobCard } from "@/components/job-card";
 import { clsx } from "clsx";
 import { useOperations } from "@/lib/use-operations";
 import { LoadingPanel } from "@/components/loading-panel";
@@ -16,7 +15,7 @@ export default function DashboardPage() {
   const stats = getDashboardStats(operations.dumpsters, operations.jobs);
   const alerts = getAlerts(operations.dumpsters, operations.jobs);
   const jobs = operations.jobs;
-  const priorityJobs = jobs.filter((job) => ["Pickup Needed", "Overdue", "Scheduled Drop-Off"].includes(job.status)).slice(0, 5);
+  const priorityJobs = jobs.filter((job) => ["Pickup Needed", "Overdue", "Scheduled Drop-Off"].includes(job.status)).slice(0, 7);
 
   const metrics = [
     { label: "Total dumpsters", value: stats.totalDumpsters, detail: "Tracked units across all sizes", icon: Warehouse },
@@ -66,18 +65,26 @@ export default function DashboardPage() {
           }
         >
           {priorityJobs.length > 0 ? (
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="divide-y divide-kp-line rounded border border-kp-line bg-white shadow-panel">
               {priorityJobs.map((job) => (
-                <JobCard
-                  key={job.id}
-                  job={job}
-                  onDelete={operations.deleteJob}
-                  onPaymentChange={operations.updateJobPaymentStatus}
-                  onUpdate={operations.updateJob}
-                  onStatusChange={operations.updateJobStatus}
-                  onAddCharge={operations.addJobCharge}
-                  onAddPayment={operations.addJobPayment}
-                />
+                <div key={job.id} className="grid gap-2 p-3 text-sm sm:grid-cols-[1fr_1fr_120px] sm:items-center">
+                  <div>
+                    <p className="font-bold text-kp-ink">
+                      {job.status === "Scheduled Drop-Off" ? "Scheduled drop-off" : "Scheduled pickup"}
+                    </p>
+                    <p className="text-xs font-semibold text-stone-500">
+                      {job.customerName} - {job.dumpsterNumber ?? "Unassigned"}
+                    </p>
+                  </div>
+                  <p className="font-semibold text-stone-700">
+                    {job.status === "Scheduled Drop-Off"
+                      ? `${displayDate(job.dropOffDate)} ${displayTime(job.dropOffTime)}`
+                      : `${displayDate(job.expectedPickupDate)} ${displayTime(job.expectedPickupTime)}`}
+                  </p>
+                  <p className={getJobBalance(job) > 0 ? "font-bold text-red-700" : "font-bold text-emerald-700"}>
+                    Owed {currency(getJobBalance(job))}
+                  </p>
+                </div>
               ))}
             </div>
           ) : (
