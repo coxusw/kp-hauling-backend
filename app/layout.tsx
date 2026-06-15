@@ -7,7 +7,12 @@ const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "KP Hauling Backend",
-  description: "Local operations tracker for KP Hauling & Dumpster Services"
+  description: "Local operations tracker for KP Hauling & Dumpster Services",
+  icons: {
+    icon: "/icon.jpg",
+    shortcut: "/icon.jpg",
+    apple: "/icon.jpg"
+  }
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

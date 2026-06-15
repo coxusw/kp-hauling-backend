@@ -3,6 +3,7 @@
 import { FormEvent, useState } from "react";
 import { LogIn } from "lucide-react";
 import { useAuth } from "@/components/auth-provider";
+import { BrandLogo } from "@/components/brand-logo";
 import { Field } from "@/components/form-fields";
 
 export default function LoginPage() {
@@ -23,7 +24,7 @@ export default function LoginPage() {
     <main className="flex min-h-screen items-center justify-center bg-kp-paper px-4 py-10">
       <form onSubmit={submit} className="w-full max-w-md rounded border border-kp-line bg-white p-6 shadow-panel">
         <div className="mb-5 flex items-center gap-3">
-          <div className="flex h-12 w-12 items-center justify-center rounded bg-kp-green text-sm font-black text-white">KP</div>
+          <BrandLogo size="lg" />
           <div>
             <h1 className="text-xl font-bold text-kp-ink">KP Hauling Login</h1>
             <p className="text-sm text-stone-600">Owner/admin and driver access</p>

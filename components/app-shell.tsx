@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { CalendarPlus, History, LayoutDashboard, LogOut, PackagePlus, Route, Truck, UserCog, Users } from "lucide-react";
 import { AuthProvider, useAuth } from "@/components/auth-provider";
+import { BrandLogo } from "@/components/brand-logo";
 import { canManageOperations, canManageUsers } from "@/lib/auth";
 
 const adminNavItems = [
@@ -71,9 +72,7 @@ function ShellContent({ children }: { children: React.ReactNode }) {
         <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-4 sm:px-6 lg:px-8">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <Link href={auth.currentUser.role === "driver" ? "/driver" : "/"} className="flex items-center gap-3">
-              <div className="flex h-11 w-11 items-center justify-center rounded bg-kp-green text-sm font-black text-white">
-                KP
-              </div>
+              <BrandLogo />
               <div>
                 <p className="text-lg font-bold leading-tight">KP Hauling & Dumpster Services</p>
                 <p className="text-sm text-stone-600">Local operations backend</p>
