@@ -4,7 +4,7 @@ import { FormEvent, useState } from "react";
 import Link from "next/link";
 import { ArrowRight, CalendarDays, Edit2, MapPin, Milestone, PackageCheck, Phone, Plus, Send, Trash2 } from "lucide-react";
 import { canManageOperations, getDriverWindowsForDate, isDriverAvailableOnDate, type AppUser } from "@/lib/auth";
-import { currency, displayDate, displayTime, getJobBalance, getJobMileageTotal } from "@/lib/data";
+import { currency, displayDate, displayTime, getJobBalance, getJobMileageTotal, getJobPaymentsTotal } from "@/lib/data";
 import type { PaymentStatus, RentalJob } from "@/lib/types";
 import { Field } from "@/components/form-fields";
 import { StatusBadge } from "@/components/status-badge";
@@ -46,6 +46,7 @@ export function DispatchJobCard({
   const [dispatchNotes, setDispatchNotes] = useState(isPickupDispatch ? job.pickupDispatchNotes ?? "" : job.deliveryDispatchNotes ?? "");
   const availableDrivers = drivers.filter((driver) => canManageOperations(driver.role) || isDriverAvailableOnDate(driver, dispatchDate));
   const assignedDriver = isPickupDispatch ? job.pickupDriverName : job.deliveryDriverName;
+  const paid = getJobPaymentsTotal(job);
   const balance = getJobBalance(job);
 
   function submitCharge(event: FormEvent<HTMLFormElement>) {
@@ -210,7 +211,8 @@ export function DispatchJobCard({
         </button>
       </form>
 
-      <div className="mt-2 grid grid-cols-3 gap-1 text-[11px] font-bold">
+      <div className="mt-2 grid grid-cols-2 gap-1 text-[11px] font-bold sm:grid-cols-4">
+        <span className="rounded bg-kp-paper px-2 py-1 text-stone-700">Paid {currency(paid)}</span>
         <span className="rounded bg-kp-paper px-2 py-1 text-stone-700">Owed {currency(balance)}</span>
         <span className="rounded bg-kp-paper px-2 py-1 text-stone-700">{job.paymentStatus}</span>
         <select

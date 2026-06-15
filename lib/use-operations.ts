@@ -323,7 +323,10 @@ export function useOperations() {
               ]
             : job.payments;
           const next = { ...job, status: "Delivered" as const, deliveryCompletedAt: completedAt, deliveryCompletionNotes: notes?.trim(), payments };
-          return { ...next, paymentStatus: getJobBalance(next) <= 0 ? "Paid" : next.paymentStatus };
+          return {
+            ...next,
+            paymentStatus: getJobBalance(next) <= 0 ? "Paid" : cashCollected && cashCollected > 0 ? "Deposit Paid" : next.paymentStatus
+          };
         }));
         setDumpsters((current) =>
           current.map((dumpster) =>
@@ -377,7 +380,10 @@ export function useOperations() {
                   pickupCompletionNotes: notes?.trim(),
                   payments
                 };
-            return { ...next, paymentStatus: getJobBalance(next) <= 0 ? "Paid" : next.paymentStatus };
+            return {
+              ...next,
+              paymentStatus: getJobBalance(next) <= 0 ? "Paid" : cashCollected && cashCollected > 0 ? "Deposit Paid" : next.paymentStatus
+            };
           })
         );
         setDumpsters((current) =>
