@@ -1,8 +1,8 @@
 "use client";
 
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
-import type { AppUser, DriverAvailabilityStatus, UserRole } from "@/lib/auth";
-import { CURRENT_USER_STORAGE_KEY, defaultUsers, makeUserId, SESSION_ID_COOKIE, SESSION_ROLE_COOKIE, USERS_STORAGE_KEY } from "@/lib/auth";
+import type { AppUser, DriverAvailabilityStatus, DriverAvailabilityWindow, UserRole } from "@/lib/auth";
+import { CURRENT_USER_STORAGE_KEY, defaultUsers, makeAvailabilityId, makeUserId, SESSION_ID_COOKIE, SESSION_ROLE_COOKIE, USERS_STORAGE_KEY } from "@/lib/auth";
 
 type NewUserInput = {
   name: string;
@@ -20,6 +20,8 @@ type AuthContextValue = {
   logout: () => void;
   addUser: (input: NewUserInput) => { ok: boolean; message?: string };
   removeUser: (userId: string) => { ok: boolean; message?: string };
+  addDriverAvailability: (userId: string, input: Pick<DriverAvailabilityWindow, "date" | "startTime" | "endTime" | "notes">) => { ok: boolean; message?: string };
+  removeDriverAvailability: (userId: string, availabilityId: string) => void;
   updateDriverAvailability: (userId: string, status: DriverAvailabilityStatus, notes: string) => void;
 };
 
@@ -115,6 +117,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             role: input.role,
             phone: input.phone?.trim(),
             availabilityStatus: input.role === "driver" ? "Unavailable" : "Available",
+            availabilityWindows: [],
             availabilityUpdatedAt: new Date().toISOString()
           }
         ]);
@@ -127,6 +130,51 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         setUsers((current) => current.filter((user) => user.id !== userId));
         return { ok: true };
+      },
+      addDriverAvailability(userId, input) {
+        if (!input.date || !input.startTime || !input.endTime) {
+          return { ok: false, message: "Date, start time, and end time are required." };
+        }
+        if (input.startTime >= input.endTime) {
+          return { ok: false, message: "End time must be after start time." };
+        }
+
+        setUsers((current) =>
+          current.map((user) =>
+            user.id === userId
+              ? {
+                  ...user,
+                  availabilityStatus: "Available",
+                  availabilityUpdatedAt: new Date().toISOString(),
+                  availabilityWindows: [
+                    ...(user.availabilityWindows ?? []),
+                    {
+                      id: makeAvailabilityId(),
+                      date: input.date,
+                      startTime: input.startTime,
+                      endTime: input.endTime,
+                      notes: input.notes?.trim(),
+                      updatedAt: new Date().toISOString()
+                    }
+                  ]
+                }
+              : user
+          )
+        );
+        return { ok: true };
+      },
+      removeDriverAvailability(userId, availabilityId) {
+        setUsers((current) =>
+          current.map((user) =>
+            user.id === userId
+              ? {
+                  ...user,
+                  availabilityWindows: (user.availabilityWindows ?? []).filter((window) => window.id !== availabilityId),
+                  availabilityUpdatedAt: new Date().toISOString()
+                }
+              : user
+          )
+        );
       },
       updateDriverAvailability(userId: string, status: DriverAvailabilityStatus, notes: string) {
         setUsers((current) =>

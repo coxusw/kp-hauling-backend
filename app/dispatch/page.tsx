@@ -7,10 +7,13 @@ import { StatusBadge } from "@/components/status-badge";
 import { boardStatuses, groupJobsForBoard, isDumpster } from "@/lib/data";
 import { useOperations } from "@/lib/use-operations";
 import { LoadingPanel } from "@/components/loading-panel";
+import { useAuth } from "@/components/auth-provider";
 
 export default function DispatchPage() {
   const operations = useOperations();
+  const auth = useAuth();
   const grouped = groupJobsForBoard(operations.dumpsters, operations.jobs);
+  const drivers = auth.users.filter((user) => user.role === "driver");
 
   return (
     <>
@@ -38,10 +41,12 @@ export default function DispatchPage() {
                     job={item}
                     onDelete={operations.deleteJob}
                     onPaymentChange={operations.updateJobPaymentStatus}
+                    onUpdate={operations.updateJob}
                     onStatusChange={operations.updateJobStatus}
                     onCompletePickup={operations.completePickupWithDestination}
                     onAddCharge={operations.addJobCharge}
                     onAddPayment={operations.addJobPayment}
+                    drivers={drivers}
                   />
                 )
               )}

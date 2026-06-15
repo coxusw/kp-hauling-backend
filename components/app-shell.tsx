@@ -15,7 +15,7 @@ const adminNavItems = [
   { href: "/dispatch", label: "Dispatch", icon: Route },
   { href: "/driver-availability", label: "Driver Availability", icon: Users },
   { href: "/log", label: "Log", icon: History },
-  { href: "/users", label: "Users", icon: UserCog },
+  { href: "/drivers", label: "Drivers", icon: UserCog },
   { href: "/driver", label: "Driver", icon: Truck }
 ];
 
@@ -49,7 +49,7 @@ function ShellContent({ children }: { children: React.ReactNode }) {
     if (auth.currentUser?.role === "driver" && !["/driver", "/driver-availability"].includes(pathname)) {
       router.replace("/driver");
     }
-    if (auth.currentUser && pathname === "/users" && !canManageUsers(auth.currentUser.role)) {
+    if (auth.currentUser && (pathname === "/users" || pathname === "/drivers") && !canManageUsers(auth.currentUser.role)) {
       router.replace("/driver");
     }
   }, [auth.currentUser, auth.loaded, isLogin, pathname, router]);

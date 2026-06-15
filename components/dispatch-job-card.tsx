@@ -2,7 +2,8 @@
 
 import { FormEvent, useState } from "react";
 import Link from "next/link";
-import { ArrowRight, CalendarDays, Edit2, MapPin, Milestone, PackageCheck, Phone, Plus, Trash2 } from "lucide-react";
+import { ArrowRight, CalendarDays, Edit2, MapPin, Milestone, PackageCheck, Phone, Plus, Send, Trash2 } from "lucide-react";
+import { getDriverWindowsForDate, isDriverAvailableOnDate, type AppUser } from "@/lib/auth";
 import { currency, displayDate, displayTime, getJobBalance, getJobMileageTotal } from "@/lib/data";
 import type { PaymentStatus, RentalJob } from "@/lib/types";
 import { Field } from "@/components/form-fields";
@@ -12,20 +13,24 @@ type DispatchJobCardProps = {
   job: RentalJob;
   onDelete: (jobId: string) => void;
   onPaymentChange: (jobId: string, paymentStatus: PaymentStatus) => void;
+  onUpdate: (jobId: string, updates: Partial<RentalJob>) => void;
   onStatusChange: (jobId: string, status: RentalJob["status"]) => void;
   onCompletePickup: (jobId: string, pickupDestinationAddress: string, pickupOneWayMiles?: number) => void;
   onAddCharge: (jobId: string, label: string, amount: number) => void;
   onAddPayment: (jobId: string, amount: number, note: string) => void;
+  drivers: AppUser[];
 };
 
 export function DispatchJobCard({
   job,
   onDelete,
   onPaymentChange,
+  onUpdate,
   onStatusChange,
   onCompletePickup,
   onAddCharge,
-  onAddPayment
+  onAddPayment,
+  drivers
 }: DispatchJobCardProps) {
   const [panel, setPanel] = useState<"charge" | "payment" | "pickup" | null>(null);
   const [chargeLabel, setChargeLabel] = useState("");
@@ -34,6 +39,12 @@ export function DispatchJobCard({
   const [paymentNote, setPaymentNote] = useState("");
   const [pickupDestination, setPickupDestination] = useState(job.pickupDestinationAddress || "KP yard");
   const [pickupMiles, setPickupMiles] = useState(job.pickupOneWayMiles === undefined ? "" : String(job.pickupOneWayMiles));
+  const isPickupDispatch = job.status === "Delivered" || job.status === "Pickup Needed" || job.status === "Overdue";
+  const dispatchDateDefault = isPickupDispatch ? job.expectedPickupDate : job.dropOffDate;
+  const [dispatchDate, setDispatchDate] = useState(dispatchDateDefault);
+  const [dispatchDriverId, setDispatchDriverId] = useState(isPickupDispatch ? job.pickupDriverId ?? "" : job.deliveryDriverId ?? "");
+  const availableDrivers = drivers.filter((driver) => isDriverAvailableOnDate(driver, dispatchDate));
+  const assignedDriver = isPickupDispatch ? job.pickupDriverName : job.deliveryDriverName;
   const balance = getJobBalance(job);
 
   function submitCharge(event: FormEvent<HTMLFormElement>) {
@@ -68,6 +79,28 @@ export function DispatchJobCard({
     }
     onCompletePickup(job.id, pickupDestination, miles);
     setPanel(null);
+  }
+
+  function submitDispatch(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const driver = drivers.find((item) => item.id === dispatchDriverId);
+    if (!driver) {
+      return;
+    }
+
+    if (isPickupDispatch) {
+      onUpdate(job.id, {
+        pickupDriverId: driver.id,
+        pickupDriverName: driver.name,
+        pickupDispatchDate: dispatchDate
+      });
+    } else {
+      onUpdate(job.id, {
+        deliveryDriverId: driver.id,
+        deliveryDriverName: driver.name,
+        deliveryDispatchDate: dispatchDate
+      });
+    }
   }
 
   return (
@@ -109,6 +142,51 @@ export function DispatchJobCard({
           </span>
         </div>
       ) : null}
+
+      <form onSubmit={submitDispatch} className="mt-2 rounded border border-kp-line bg-kp-paper p-2">
+        <div className="mb-2 flex items-center justify-between gap-2">
+          <p className="text-xs font-bold uppercase tracking-normal text-stone-500">
+            Dispatch {isPickupDispatch ? "Pickup" : "Delivery"}
+          </p>
+          {assignedDriver ? <span className="rounded bg-white px-2 py-1 text-[11px] font-bold text-kp-green">{assignedDriver}</span> : <span className="rounded bg-white px-2 py-1 text-[11px] font-bold text-amber-700">Not dispatched</span>}
+        </div>
+        <div className="grid gap-2">
+          <label className="block text-xs font-bold text-stone-700">
+            Dispatch Date
+            <input
+              type="date"
+              value={dispatchDate}
+              onChange={(event) => {
+                setDispatchDate(event.target.value);
+                setDispatchDriverId("");
+              }}
+              className="mt-1 min-h-9 w-full rounded border border-kp-line bg-white px-2 text-xs text-kp-ink"
+            />
+          </label>
+          <label className="block text-xs font-bold text-stone-700">
+            Available Driver
+            <select
+              value={dispatchDriverId}
+              onChange={(event) => setDispatchDriverId(event.target.value)}
+              className="mt-1 min-h-9 w-full rounded border border-kp-line bg-white px-2 text-xs font-bold text-kp-ink"
+            >
+              <option value="">Select driver</option>
+              {availableDrivers.map((driver) => (
+                <option key={driver.id} value={driver.id}>
+                  {driver.name} ({getDriverWindowsForDate(driver, dispatchDate).map((window) => `${window.startTime}-${window.endTime}`).join(", ")})
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+        {availableDrivers.length === 0 ? (
+          <p className="mt-2 text-xs font-semibold text-amber-700">No drivers have entered availability for this date.</p>
+        ) : null}
+        <button type="submit" disabled={!dispatchDriverId} className="mt-2 flex min-h-8 items-center gap-1 rounded bg-kp-green px-2 text-xs font-bold text-white disabled:cursor-not-allowed disabled:bg-stone-400">
+          <Send aria-hidden className="h-3.5 w-3.5" />
+          Dispatch
+        </button>
+      </form>
 
       <div className="mt-2 grid grid-cols-3 gap-1 text-[11px] font-bold">
         <span className="rounded bg-kp-paper px-2 py-1 text-stone-700">Owed {currency(balance)}</span>

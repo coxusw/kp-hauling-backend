@@ -115,9 +115,20 @@ Change that value when you want to review how alerts and calendar buckets respon
 - `/calendar` - today, tomorrow, overdue, and future scheduled work
 - `/availability` - availability by dumpster size
 - `/driver-availability` - driver availability board and driver availability updates
-- `/users` - owner/admin user and driver login management
+- `/drivers` - owner/admin driver and admin login management
 - `/log` - finished job history, totals, expenses, exports, and projections
 - `/driver` - mobile-friendly driver work list with local mark-delivered and mark-picked-up actions
+
+## Mobile App And Notifications
+
+The app includes PWA metadata so it can be added to a phone home screen from the browser while testing.
+
+Current test-mode notifications are in-app only. True push notifications for admins and drivers should be added with Supabase-backed auth/database records plus a server-side push service. Planned notification events:
+
+- Admin: driver availability changed
+- Admin: job due for pickup
+- Driver: delivery assigned
+- Driver: pickup assigned
 
 ## Supabase-Ready Notes
 

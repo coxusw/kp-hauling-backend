@@ -19,6 +19,7 @@ function isAsset(pathname: string) {
     pathname.endsWith(".png") ||
     pathname.endsWith(".svg") ||
     pathname.endsWith(".webp") ||
+    pathname.endsWith(".webmanifest") ||
     pathname.endsWith(".woff") ||
     pathname.endsWith(".woff2")
   );

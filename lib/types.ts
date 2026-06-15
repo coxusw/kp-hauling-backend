@@ -62,6 +62,12 @@ export type RentalJob = {
   dumpsterId?: string;
   dumpsterNumber?: string;
   dumpsterSize: DumpsterSize;
+  deliveryDriverId?: string;
+  deliveryDriverName?: string;
+  deliveryDispatchDate?: string;
+  pickupDriverId?: string;
+  pickupDriverName?: string;
+  pickupDispatchDate?: string;
   startingDumpsterAddress?: string;
   estimatedOneWayMiles?: number;
   pickupDestinationAddress?: string;
