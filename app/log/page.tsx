@@ -127,8 +127,9 @@ export default function LogPage() {
 
   function exportJobs() {
     downloadCsv("kp-hauling-job-log.csv", [
-      ["Customer", "Dumpster", "Completed", "Drop-off Mileage", "Pickup Mileage", "Total Mileage", "Billed", "Collected", "Balances Owed", "Payment Status", "Address", "Pickup Destination"],
+      ["Job #", "Customer", "Dumpster", "Completed", "Drop-off Mileage", "Pickup Mileage", "Total Mileage", "Billed", "Collected", "Balances Owed", "Payment Status", "Address", "Pickup Destination"],
       ...filteredJobs.map((job) => [
+        job.jobNumber,
         job.customerName,
         job.dumpsterNumber,
         job.actualPickupDate ?? job.expectedPickupDate,
@@ -154,11 +155,12 @@ export default function LogPage() {
 
   function exportDriverCash() {
     downloadCsv("kp-hauling-driver-cash.csv", [
-      ["Type", "Date", "Driver", "Customer", "Dumpster", "Collected During", "Amount", "Note"],
+      ["Type", "Date", "Driver", "Job #", "Customer", "Dumpster", "Collected During", "Amount", "Note"],
       ...filteredDriverCash.map(({ job, payment }) => [
         "Driver cash collected",
         payment.date,
         payment.driverName,
+        job.jobNumber,
         job.customerName,
         job.dumpsterNumber,
         payment.collectedDuring === "delivery" ? "Delivery" : "Pickup",
@@ -169,6 +171,7 @@ export default function LogPage() {
         "Cash turned in to owner",
         handoff.date,
         handoff.driverName,
+        "",
         "",
         "",
         "",
@@ -233,7 +236,7 @@ export default function LogPage() {
               </div>
               <div className="divide-y divide-kp-line">
                 <div className="hidden grid-cols-[1.6fr_0.9fr_0.9fr_0.6fr_0.9fr_0.9fr_0.9fr_0.8fr] gap-3 bg-kp-paper p-3 text-xs font-bold uppercase tracking-normal text-stone-500 lg:grid">
-                  <span>Customer</span>
+                  <span>Job / Customer</span>
                   <span>Completed</span>
                   <span>Dumpster</span>
                   <span>Miles</span>
@@ -246,7 +249,7 @@ export default function LogPage() {
                   <div key={job.id} className="p-3">
                     <div className="grid gap-3 text-sm lg:grid-cols-[1.6fr_0.9fr_0.9fr_0.6fr_0.9fr_0.9fr_0.9fr_0.8fr] lg:items-center">
                       <div>
-                        <p className="font-bold text-kp-ink">{job.customerName}</p>
+                        <p className="font-bold text-kp-ink">Job #{job.jobNumber} - {job.customerName}</p>
                         <p className="text-xs text-stone-500 lg:hidden">{job.jobAddress}</p>
                       </div>
                       <div>
@@ -333,7 +336,7 @@ export default function LogPage() {
                 <div className="hidden grid-cols-[0.8fr_1fr_1.4fr_0.8fr_0.8fr_0.8fr_1.5fr] gap-3 bg-kp-paper p-3 text-xs font-bold uppercase tracking-normal text-stone-500 lg:grid">
                   <span>Date</span>
                   <span>Driver</span>
-                  <span>Customer</span>
+                  <span>Job / Customer</span>
                   <span>Dumpster</span>
                   <span>For</span>
                   <span>Amount</span>
@@ -350,8 +353,8 @@ export default function LogPage() {
                       <p className="font-bold text-kp-ink">{payment.driverName}</p>
                     </div>
                     <div>
-                      <p className="text-xs font-bold uppercase text-stone-500 lg:hidden">Customer</p>
-                      <p>{job.customerName}</p>
+                      <p className="text-xs font-bold uppercase text-stone-500 lg:hidden">Job / Customer</p>
+                      <p>Job #{job.jobNumber} - {job.customerName}</p>
                       <p className="text-xs text-stone-500">{job.jobAddress}</p>
                     </div>
                     <div>

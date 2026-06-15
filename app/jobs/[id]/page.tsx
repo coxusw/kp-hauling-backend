@@ -131,7 +131,7 @@ export default function JobEditPage() {
       </div>
 
       <div className="mb-4">
-        <h1 className="text-3xl font-bold text-kp-ink">{job.customerName}</h1>
+        <h1 className="text-3xl font-bold text-kp-ink">Job #{job.jobNumber} - {job.customerName}</h1>
         <p className="mt-1 text-sm text-stone-600">
           {job.dumpsterNumber ?? "Unassigned"} - {job.dumpsterSize} - {job.jobAddress}
         </p>

@@ -70,6 +70,7 @@ export type Dumpster = {
 
 export type RentalJob = {
   id: string;
+  jobNumber: number;
   customerName: string;
   phone: string;
   email: string;

@@ -39,7 +39,7 @@ function DriverTask({ job, type, onComplete }: DriverTaskProps) {
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-xs font-bold uppercase tracking-normal text-stone-500">{isDelivery ? "Assigned Delivery" : "Assigned Pickup"}</p>
-          <h2 className="mt-1 text-lg font-bold text-kp-ink">{job.customerName}</h2>
+          <h2 className="mt-1 text-lg font-bold text-kp-ink">Job #{job.jobNumber} - {job.customerName}</h2>
           <p className="mt-1 text-sm font-semibold text-stone-600">{job.dumpsterNumber ?? "Unassigned"} - {job.dumpsterSize}</p>
           <p className="mt-1 text-sm font-bold text-kp-green">
             {isDelivery
@@ -149,7 +149,7 @@ function OpenJobCard({ job, type }: { job: RentalJob; type: "delivery" | "pickup
       <div className="flex items-start justify-between gap-2">
         <div>
           <p className="text-xs font-bold uppercase tracking-normal text-stone-500">Open {isDelivery ? "Delivery" : "Pickup"}</p>
-          <h3 className="mt-1 font-bold text-kp-ink">{job.customerName}</h3>
+          <h3 className="mt-1 font-bold text-kp-ink">Job #{job.jobNumber} - {job.customerName}</h3>
           <p className="text-xs font-semibold text-stone-600">{job.dumpsterNumber ?? "Unassigned"} - {job.dumpsterSize}</p>
         </div>
         <StatusBadge status={job.status} />

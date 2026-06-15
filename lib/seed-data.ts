@@ -118,6 +118,7 @@ export const demoDumpsters: Dumpster[] = [
 export const demoJobs: RentalJob[] = [
   {
     id: "job-200",
+    jobNumber: 1,
     customerName: "Mason Hall",
     phone: "(555) 218-4101",
     email: "mason.hall@example.com",
@@ -138,6 +139,7 @@ export const demoJobs: RentalJob[] = [
   },
   {
     id: "job-201",
+    jobNumber: 2,
     customerName: "Ramirez Roofing",
     phone: "(555) 934-2290",
     email: "dispatch@ramirezroofing.example",
@@ -158,6 +160,7 @@ export const demoJobs: RentalJob[] = [
   },
   {
     id: "job-202",
+    jobNumber: 3,
     customerName: "Benton Remodels",
     phone: "(555) 447-8080",
     email: "office@bentonremodels.example",
@@ -178,6 +181,7 @@ export const demoJobs: RentalJob[] = [
   },
   {
     id: "job-203",
+    jobNumber: 4,
     customerName: "Lena Brooks",
     phone: "(555) 774-1184",
     email: "lena.brooks@example.com",
@@ -198,6 +202,7 @@ export const demoJobs: RentalJob[] = [
   },
   {
     id: "job-204",
+    jobNumber: 5,
     customerName: "Northline Builders",
     phone: "(555) 319-6642",
     email: "jobs@northlinebuilders.example",
@@ -218,6 +223,7 @@ export const demoJobs: RentalJob[] = [
   },
   {
     id: "job-205",
+    jobNumber: 6,
     customerName: "Trinity Demo",
     phone: "(555) 705-3910",
     email: "field@trinitydemo.example",
@@ -238,6 +244,7 @@ export const demoJobs: RentalJob[] = [
   },
   {
     id: "job-206",
+    jobNumber: 7,
     customerName: "Shaw Landscaping",
     phone: "(555) 862-3477",
     email: "crew@shawlandscaping.example",
@@ -256,6 +263,7 @@ export const demoJobs: RentalJob[] = [
   },
   {
     id: "job-207",
+    jobNumber: 8,
     customerName: "Oak Street Properties",
     phone: "(555) 441-7761",
     email: "service@oakstreet.example",

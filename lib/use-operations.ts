@@ -47,10 +47,15 @@ function normalizeDumpsters(dumpsters: Dumpster[]) {
 }
 
 function normalizeJobs(jobs: RentalJob[]) {
-  return jobs.map((job) => ({
-    ...job,
-    pickupDestinationAddress: job.pickupDestinationAddress ?? "KP yard"
-  }));
+  let nextJobNumber = Math.max(0, ...jobs.map((job) => job.jobNumber ?? 0)) + 1;
+  return jobs.map((job) => {
+    const jobNumber = job.jobNumber ?? nextJobNumber++;
+    return {
+      ...job,
+      jobNumber,
+      pickupDestinationAddress: job.pickupDestinationAddress ?? "KP yard"
+    };
+  });
 }
 
 export function useOperations() {
@@ -128,7 +133,7 @@ export function useOperations() {
         );
       },
       addJob(input: NewJobInput) {
-        const newJob = createJob(input, dumpsters);
+        const newJob = createJob(input, dumpsters, jobs);
         setJobs((current) => [...current, newJob]);
         if (newJob.dumpsterId) {
           setDumpsters((current) =>
@@ -294,17 +299,6 @@ export function useOperations() {
       addExpense(input: NewExpenseInput) {
         setExpenses((current) => [...current, createExpense(input)]);
       },
-      addDriverPay(driverName: string, amount: number, notes: string) {
-        setExpenses((current) => [
-          ...current,
-          createExpense({
-            date: new Date().toISOString().slice(0, 10),
-            label: `Driver pay - ${driverName}`,
-            amount,
-            notes
-          })
-        ]);
-      },
       markDriverRoutePaid(jobId: string, routeType: "delivery" | "pickup", amount: number, notes: string) {
         const targetJob = jobs.find((job) => job.id === jobId);
         if (!targetJob) {
@@ -340,9 +334,9 @@ export function useOperations() {
           ...current,
           createExpense({
             date: paidAt,
-            label: `Driver route pay - ${driverName}`,
+            label: `Driver route pay - Job #${targetJob.jobNumber}`,
             amount,
-            notes: `${routeType === "delivery" ? "Delivery" : "Pickup"} route for ${targetJob.customerName}${notes.trim() ? `: ${notes.trim()}` : ""}`
+            notes: `${routeType === "delivery" ? "Drop-off" : "Pickup"} route paid to ${driverName} for ${targetJob.customerName}${notes.trim() ? `: ${notes.trim()}` : ""}`
           })
         ]);
       },

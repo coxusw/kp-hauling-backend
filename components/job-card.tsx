@@ -62,7 +62,7 @@ export function JobCard({ job, onDelete, onPaymentChange, onUpdate, onStatusChan
     <article className="rounded border border-kp-line bg-white p-4 shadow-panel">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
-          <h3 className="font-bold text-kp-ink">{job.customerName}</h3>
+          <h3 className="font-bold text-kp-ink">Job #{job.jobNumber} - {job.customerName}</h3>
           <p className="mt-1 text-sm text-stone-600">{job.dumpsterNumber ?? "Unassigned"} - {job.dumpsterSize}</p>
         </div>
         <StatusBadge status={job.status} />

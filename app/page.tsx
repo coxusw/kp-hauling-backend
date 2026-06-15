@@ -73,7 +73,7 @@ export default function DashboardPage() {
                       {job.status === "Scheduled Drop-Off" ? "Scheduled drop-off" : "Scheduled pickup"}
                     </p>
                     <p className="text-xs font-semibold text-stone-500">
-                      {job.customerName} - {job.dumpsterNumber ?? "Unassigned"}
+                      Job #{job.jobNumber} - {job.customerName} - {job.dumpsterNumber ?? "Unassigned"}
                     </p>
                   </div>
                   <p className="font-semibold text-stone-700">

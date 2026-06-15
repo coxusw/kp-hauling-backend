@@ -1,31 +1,50 @@
 "use client";
 
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { useAuth } from "@/components/auth-provider";
 import { Field, SelectField } from "@/components/form-fields";
 import { PageHeader } from "@/components/page-header";
 import type { AppUser, UserRole } from "@/lib/auth";
 import { currency } from "@/lib/data";
+import type { RentalJob } from "@/lib/types";
 import { useOperations } from "@/lib/use-operations";
+
+type PayableDriverRoute = {
+  id: string;
+  job: RentalJob;
+  routeType: "delivery" | "pickup";
+  label: string;
+};
 
 function DriverMoneyActions({
   user,
   cashHeld,
-  routePayDueCount,
+  payableRoutes,
   onCashHandoff,
-  onDriverPay
+  onRoutePay
 }: {
   user: AppUser;
   cashHeld: number;
-  routePayDueCount: number;
+  payableRoutes: PayableDriverRoute[];
   onCashHandoff: (user: AppUser, amount: number, notes: string) => void;
-  onDriverPay: (user: AppUser, amount: number, notes: string) => void;
+  onRoutePay: (route: PayableDriverRoute, amount: number, notes: string) => void;
 }) {
   const [handoffAmount, setHandoffAmount] = useState("");
   const [handoffNotes, setHandoffNotes] = useState("");
+  const [selectedRouteId, setSelectedRouteId] = useState(payableRoutes[0]?.id ?? "");
   const [payAmount, setPayAmount] = useState("");
   const [payNotes, setPayNotes] = useState("");
+
+  useEffect(() => {
+    if (selectedRouteId && !payableRoutes.some((route) => route.id === selectedRouteId)) {
+      setSelectedRouteId(payableRoutes[0]?.id ?? "");
+      return;
+    }
+    if (!selectedRouteId && payableRoutes[0]) {
+      setSelectedRouteId(payableRoutes[0].id);
+    }
+  }, [payableRoutes, selectedRouteId]);
 
   function submitHandoff(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -41,10 +60,11 @@ function DriverMoneyActions({
   function submitPay(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const amount = Number(payAmount);
-    if (!Number.isFinite(amount) || amount <= 0) {
+    const route = payableRoutes.find((item) => item.id === selectedRouteId);
+    if (!route || !Number.isFinite(amount) || amount <= 0) {
       return;
     }
-    onDriverPay(user, amount, payNotes);
+    onRoutePay(route, amount, payNotes);
     setPayAmount("");
     setPayNotes("");
   }
@@ -54,8 +74,8 @@ function DriverMoneyActions({
       <div className="rounded border border-kp-line bg-kp-paper p-2">
         <p className="text-xs font-bold uppercase tracking-normal text-stone-500">Cash Held By Driver</p>
         <p className={cashHeld > 0 ? "text-lg font-bold text-amber-800" : "text-lg font-bold text-kp-ink"}>{currency(cashHeld)}</p>
-        <p className={routePayDueCount > 0 ? "mt-1 text-xs font-bold text-amber-800" : "mt-1 text-xs font-semibold text-stone-500"}>
-          {routePayDueCount} route{routePayDueCount === 1 ? "" : "s"} need driver pay
+        <p className={payableRoutes.length > 0 ? "mt-1 text-xs font-bold text-amber-800" : "mt-1 text-xs font-semibold text-stone-500"}>
+          {payableRoutes.length} completed route{payableRoutes.length === 1 ? "" : "s"} need driver pay
         </p>
       </div>
       <div className="grid gap-2 lg:grid-cols-2">
@@ -70,13 +90,28 @@ function DriverMoneyActions({
           </button>
         </form>
         <form onSubmit={submitPay} className="rounded border border-kp-line bg-kp-paper p-2">
-          <p className="mb-2 text-xs font-bold uppercase tracking-normal text-stone-500">Pay Driver</p>
-          <div className="grid gap-2 sm:grid-cols-[100px_1fr]">
+          <p className="mb-2 text-xs font-bold uppercase tracking-normal text-stone-500">Pay Driver For Completed Route</p>
+          <div className="grid gap-2 sm:grid-cols-[1fr_100px]">
+            <label className="block text-sm font-bold text-stone-700">
+              Completed Route
+              <select
+                value={selectedRouteId}
+                onChange={(event) => setSelectedRouteId(event.target.value)}
+                className="mt-1 min-h-10 w-full rounded border border-kp-line bg-white px-3 text-sm font-bold text-kp-ink"
+              >
+                <option value="">Select route</option>
+                {payableRoutes.map((route) => (
+                  <option key={route.id} value={route.id}>{route.label}</option>
+                ))}
+              </select>
+            </label>
             <Field label="Amount" type="number" min={0} step="0.01" value={payAmount} onChange={(event) => setPayAmount(event.target.value)} />
-            <Field label="Notes" value={payNotes} onChange={(event) => setPayNotes(event.target.value)} placeholder="Route pay, day pay..." />
           </div>
-          <button type="submit" className="mt-2 min-h-9 rounded bg-white px-3 text-xs font-bold text-stone-700 ring-1 ring-kp-line">
-            Log Driver Pay
+          <div className="mt-2">
+            <Field label="Notes" value={payNotes} onChange={(event) => setPayNotes(event.target.value)} placeholder="Route pay, cash, check..." />
+          </div>
+          <button type="submit" disabled={payableRoutes.length === 0} className="mt-2 min-h-9 rounded bg-white px-3 text-xs font-bold text-stone-700 ring-1 ring-kp-line disabled:cursor-not-allowed disabled:bg-stone-100 disabled:text-stone-400">
+            Mark Route Paid
           </button>
         </form>
       </div>
@@ -125,12 +160,27 @@ export default function DriversPage() {
     return Math.max(collected - turnedIn, 0);
   }
 
-  function getDriverRoutePayDueCount(user: AppUser) {
-    return operations.jobs.reduce((total, job) => {
-      const deliveryNeedsPay = job.deliveryDriverId === user.id && job.deliveryCompletedAt && !job.deliveryDriverPaidAt;
-      const pickupNeedsPay = job.pickupDriverId === user.id && job.pickupCompletedAt && !job.pickupDriverPaidAt;
-      return total + (deliveryNeedsPay ? 1 : 0) + (pickupNeedsPay ? 1 : 0);
-    }, 0);
+  function getPayableRoutes(user: AppUser): PayableDriverRoute[] {
+    return operations.jobs.flatMap((job) => {
+      const routes: PayableDriverRoute[] = [];
+      if (job.deliveryDriverId === user.id && job.deliveryCompletedAt && !job.deliveryDriverPaidAt) {
+        routes.push({
+          id: `${job.id}:delivery`,
+          job,
+          routeType: "delivery",
+          label: `Job #${job.jobNumber} drop-off - ${job.customerName}`
+        });
+      }
+      if (job.pickupDriverId === user.id && job.pickupCompletedAt && !job.pickupDriverPaidAt) {
+        routes.push({
+          id: `${job.id}:pickup`,
+          job,
+          routeType: "pickup",
+          label: `Job #${job.jobNumber} pickup - ${job.customerName}`
+        });
+      }
+      return routes;
+    });
   }
 
   function addCashHandoff(user: AppUser, amount: number, notes: string) {
@@ -143,9 +193,9 @@ export default function DriversPage() {
     setMessage(`Collected ${currency(amount)} from ${user.name}.`);
   }
 
-  function addDriverPay(user: AppUser, amount: number, notes: string) {
-    operations.addDriverPay(user.name, amount, notes || "Driver pay");
-    setMessage(`Logged ${currency(amount)} driver pay for ${user.name}.`);
+  function addRoutePay(route: PayableDriverRoute, amount: number, notes: string) {
+    operations.markDriverRoutePaid(route.job.id, route.routeType, amount, notes || route.label);
+    setMessage(`Marked ${route.label} paid for ${currency(amount)}.`);
   }
 
   return (
@@ -199,9 +249,9 @@ export default function DriversPage() {
                   <DriverMoneyActions
                     user={user}
                     cashHeld={getDriverCashHeld(user)}
-                    routePayDueCount={getDriverRoutePayDueCount(user)}
+                    payableRoutes={getPayableRoutes(user)}
                     onCashHandoff={addCashHandoff}
-                    onDriverPay={addDriverPay}
+                    onRoutePay={addRoutePay}
                   />
                 ) : null}
               </div>

@@ -61,11 +61,13 @@ export function createDumpster(input: NewDumpsterInput): Dumpster {
   };
 }
 
-export function createJob(input: NewJobInput, dumpsters: Dumpster[]): RentalJob {
+export function createJob(input: NewJobInput, dumpsters: Dumpster[], existingJobs: RentalJob[] = []): RentalJob {
   const assignedDumpster = dumpsters.find((dumpster) => dumpster.id === input.dumpsterId);
+  const nextJobNumber = Math.max(0, ...existingJobs.map((job) => job.jobNumber ?? 0)) + 1;
 
   return {
     id: makeId("job"),
+    jobNumber: nextJobNumber,
     customerName: input.customerName.trim(),
     phone: input.phone.trim(),
     email: input.email.trim(),
