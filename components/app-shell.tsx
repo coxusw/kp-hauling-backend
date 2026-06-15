@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
-import { CalendarPlus, ClipboardList, History, LayoutDashboard, LogOut, PackagePlus, Route, Truck, UserCog, Users, Warehouse } from "lucide-react";
+import { CalendarPlus, History, LayoutDashboard, LogOut, PackagePlus, Route, Truck, UserCog, Users } from "lucide-react";
 import { AuthProvider, useAuth } from "@/components/auth-provider";
 import { canManageOperations, canManageUsers } from "@/lib/auth";
 
@@ -12,8 +12,6 @@ const adminNavItems = [
   { href: "/inventory", label: "Inventory", icon: PackagePlus },
   { href: "/schedule", label: "Schedule Job", icon: CalendarPlus },
   { href: "/dispatch", label: "Dispatch", icon: Route },
-  { href: "/calendar", label: "Calendar", icon: ClipboardList },
-  { href: "/availability", label: "Dumpster Availability", icon: Warehouse },
   { href: "/driver-availability", label: "Driver Availability", icon: Users },
   { href: "/log", label: "Log", icon: History },
   { href: "/users", label: "Users", icon: UserCog },
