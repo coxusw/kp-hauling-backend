@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useMemo, useState } from "react";
-import { Plus } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 import { useAuth } from "@/components/auth-provider";
 import { Field, SelectField } from "@/components/form-fields";
 import { PageHeader } from "@/components/page-header";
@@ -28,6 +28,11 @@ export default function UsersPage() {
     }
     setMessage("Login added.");
     setForm({ name: "", email: "", password: "", phone: "", role: "driver" });
+  }
+
+  function removeUser(userId: string) {
+    const result = auth.removeUser(userId);
+    setMessage(result.ok ? "Login removed." : result.message ?? "Unable to remove login.");
   }
 
   return (
@@ -59,7 +64,7 @@ export default function UsersPage() {
           </div>
           <div className="divide-y divide-kp-line">
             {auth.users.map((user) => (
-              <div key={user.id} className="grid gap-2 p-3 text-sm sm:grid-cols-[1fr_1fr_120px_150px] sm:items-center">
+              <div key={user.id} className="grid gap-2 p-3 text-sm sm:grid-cols-[1fr_1fr_120px_150px_90px] sm:items-center">
                 <div>
                   <p className="font-bold text-kp-ink">{user.name}</p>
                   <p className="text-xs text-stone-500">{user.email}</p>
@@ -67,6 +72,16 @@ export default function UsersPage() {
                 <p>{user.phone || "No phone"}</p>
                 <p className="rounded bg-kp-paper px-2 py-1 text-xs font-bold capitalize text-stone-700">{user.role}</p>
                 <p className="text-xs font-semibold text-stone-600">{user.availabilityStatus ?? "Available"}</p>
+                <button
+                  type="button"
+                  onClick={() => removeUser(user.id)}
+                  disabled={user.id === auth.currentUser?.id}
+                  title={user.id === auth.currentUser?.id ? "You cannot remove your active login." : "Remove login"}
+                  className="flex min-h-9 items-center justify-center gap-2 rounded border border-kp-line bg-white px-2 text-xs font-bold text-red-700 transition hover:border-red-300 disabled:cursor-not-allowed disabled:bg-stone-100 disabled:text-stone-400"
+                >
+                  <Trash2 aria-hidden className="h-4 w-4" />
+                  Remove
+                </button>
               </div>
             ))}
           </div>

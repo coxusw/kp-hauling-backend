@@ -19,6 +19,7 @@ type AuthContextValue = {
   login: (email: string, password: string) => boolean;
   logout: () => void;
   addUser: (input: NewUserInput) => { ok: boolean; message?: string };
+  removeUser: (userId: string) => { ok: boolean; message?: string };
   updateDriverAvailability: (userId: string, status: DriverAvailabilityStatus, notes: string) => void;
 };
 
@@ -117,6 +118,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             availabilityUpdatedAt: new Date().toISOString()
           }
         ]);
+        return { ok: true };
+      },
+      removeUser(userId: string) {
+        if (userId === currentUser?.id) {
+          return { ok: false, message: "You cannot remove the login you are currently using." };
+        }
+
+        setUsers((current) => current.filter((user) => user.id !== userId));
         return { ok: true };
       },
       updateDriverAvailability(userId: string, status: DriverAvailabilityStatus, notes: string) {
