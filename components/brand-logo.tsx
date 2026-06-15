@@ -1,16 +1,13 @@
-import Image from "next/image";
+/* eslint-disable @next/next/no-img-element */
 
 export function BrandLogo({ size = "md" }: { size?: "md" | "lg" }) {
-  const pixels = size === "lg" ? 48 : 44;
+  const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
   const dimensions = size === "lg" ? "h-12 w-12" : "h-11 w-11";
 
   return (
-    <Image
-      src="/kp-hauling-logo.jpg"
+    <img
+      src={`${basePath}/kp-hauling-logo.jpg?v=20260615`}
       alt="KP Hauling & Dumpster Services"
-      width={pixels}
-      height={pixels}
-      priority={size === "lg"}
       className={`${dimensions} rounded object-cover ring-1 ring-kp-line`}
     />
   );
