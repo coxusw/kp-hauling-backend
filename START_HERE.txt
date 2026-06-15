@@ -1,0 +1,32 @@
+KP Hauling Local App - Start Instructions
+
+1. Install Node.js on the computer if it is not already installed.
+   Download it from:
+   https://nodejs.org/
+
+2. Open PowerShell.
+
+3. Go to this project folder.
+   If running from the USB drive, use:
+
+   cd "D:\kp-hauling-backend"
+
+   If you copy the folder somewhere else, use cd with that folder path instead.
+
+4. Install the app dependencies:
+
+   npm.cmd install
+
+5. Start the local app:
+
+   npm.cmd run dev
+
+6. Open this in the browser:
+
+   http://localhost:3000
+
+Notes:
+- Keep the PowerShell window open while using the app.
+- To stop the app, click the PowerShell window and press Ctrl + C.
+- This version is local-only. It does not deploy or connect to Supabase yet.
+- Data entered into the app is saved in that browser on that computer.
