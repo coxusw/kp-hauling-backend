@@ -51,12 +51,16 @@ export default function LogPage() {
     new Set([
       ...finishedJobs.map((job) => monthKey(job.actualPickupDate ?? job.expectedPickupDate)),
       ...operations.expenses.map((expense) => monthKey(expense.date)),
-      ...driverCashRows.map(({ payment }) => monthKey(payment.date))
+      ...driverCashRows.map(({ payment }) => monthKey(payment.date)),
+      ...operations.driverCashHandoffs.map((handoff) => monthKey(handoff.date))
     ])
   ).sort();
   const filteredJobs = monthFilter === "all" ? finishedJobs : finishedJobs.filter((job) => monthKey(job.actualPickupDate ?? job.expectedPickupDate) === monthFilter);
   const filteredExpenses = monthFilter === "all" ? operations.expenses : operations.expenses.filter((expense) => monthKey(expense.date) === monthFilter);
   const filteredDriverCash = monthFilter === "all" ? driverCashRows : driverCashRows.filter(({ payment }) => monthKey(payment.date) === monthFilter);
+  const filteredDriverCashHandoffs = monthFilter === "all"
+    ? operations.driverCashHandoffs
+    : operations.driverCashHandoffs.filter((handoff) => monthKey(handoff.date) === monthFilter);
 
   const totals = {
     mileage: filteredJobs.reduce((total, job) => total + getJobMileageTotal(job), 0),
@@ -64,8 +68,10 @@ export default function LogPage() {
     collected: filteredJobs.reduce((total, job) => total + getJobPaymentsTotal(job), 0),
     balance: filteredJobs.reduce((total, job) => total + getJobBalance(job), 0),
     expenses: filteredExpenses.reduce((total, expense) => total + expense.amount, 0),
-    driverCash: filteredDriverCash.reduce((total, { payment }) => total + payment.amount, 0)
+    driverCash: filteredDriverCash.reduce((total, { payment }) => total + payment.amount, 0),
+    driverCashTurnedIn: filteredDriverCashHandoffs.reduce((total, handoff) => total + handoff.amount, 0)
   };
+  const driverCashHeld = Math.max(totals.driverCash - totals.driverCashTurnedIn, 0);
   const netIncome = totals.collected - totals.expenses;
 
   const projectionRows = useMemo(() => {
@@ -132,8 +138,9 @@ export default function LogPage() {
 
   function exportDriverCash() {
     downloadCsv("kp-hauling-driver-cash.csv", [
-      ["Date", "Driver", "Customer", "Dumpster", "Collected During", "Amount", "Note"],
+      ["Type", "Date", "Driver", "Customer", "Dumpster", "Collected During", "Amount", "Note"],
       ...filteredDriverCash.map(({ job, payment }) => [
+        "Driver cash collected",
         payment.date,
         payment.driverName,
         job.customerName,
@@ -141,6 +148,16 @@ export default function LogPage() {
         payment.collectedDuring === "delivery" ? "Delivery" : "Pickup",
         payment.amount,
         payment.note
+      ]),
+      ...filteredDriverCashHandoffs.map((handoff) => [
+        "Cash turned in to owner",
+        handoff.date,
+        handoff.driverName,
+        "",
+        "",
+        "",
+        handoff.amount,
+        handoff.notes
       ])
     ]);
   }
@@ -179,11 +196,12 @@ export default function LogPage() {
             </label>
           </div>
 
-          <div className="mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
+          <div className="mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8">
             <div className="rounded border border-kp-line bg-white p-3"><p className="text-xs font-bold text-stone-500">Mileage</p><p className="text-2xl font-bold">{totals.mileage.toFixed(1)}</p></div>
             <div className="rounded border border-kp-line bg-white p-3"><p className="text-xs font-bold text-stone-500">Billed</p><p className="text-2xl font-bold">{currency(totals.billed)}</p></div>
             <div className="rounded border border-kp-line bg-white p-3"><p className="text-xs font-bold text-stone-500">Collected</p><p className="text-2xl font-bold">{currency(totals.collected)}</p></div>
             <div className="rounded border border-kp-line bg-white p-3"><p className="text-xs font-bold text-stone-500">Driver Cash</p><p className="text-2xl font-bold">{currency(totals.driverCash)}</p></div>
+            <div className="rounded border border-kp-line bg-white p-3"><p className="text-xs font-bold text-stone-500">Driver Cash Held</p><p className="text-2xl font-bold">{currency(driverCashHeld)}</p></div>
             <div className="rounded border border-kp-line bg-white p-3"><p className="text-xs font-bold text-stone-500">Balances Owed</p><p className="text-2xl font-bold">{currency(totals.balance)}</p></div>
             <div className="rounded border border-kp-line bg-white p-3"><p className="text-xs font-bold text-stone-500">Expenses</p><p className="text-2xl font-bold">{currency(totals.expenses)}</p></div>
             <div className="rounded border border-kp-line bg-white p-3"><p className="text-xs font-bold text-stone-500">Net Income</p><p className="text-2xl font-bold">{currency(netIncome)}</p></div>
@@ -265,6 +283,21 @@ export default function LogPage() {
                 )) : (
                   <div className="p-5 text-sm text-stone-600">No finished jobs for this filter.</div>
                 )}
+              </div>
+              <div className="border-t border-kp-line p-3">
+                <h3 className="font-bold text-kp-ink">Cash Turned In To Owner</h3>
+                <div className="mt-3 divide-y divide-kp-line rounded border border-kp-line">
+                  {filteredDriverCashHandoffs.length > 0 ? filteredDriverCashHandoffs.map((handoff) => (
+                    <div key={handoff.id} className="grid gap-2 p-3 text-sm md:grid-cols-[0.8fr_1fr_0.8fr_1.5fr] md:items-center">
+                      <p>{displayDate(handoff.date)}</p>
+                      <p className="font-bold text-kp-ink">{handoff.driverName}</p>
+                      <p className="font-bold text-emerald-700">{currency(handoff.amount)}</p>
+                      <p className="text-stone-600">{handoff.notes || "No note"}</p>
+                    </div>
+                  )) : (
+                    <div className="p-3 text-sm text-stone-600">No driver cash handoffs for this filter.</div>
+                  )}
+                </div>
               </div>
             </section>
           ) : null}

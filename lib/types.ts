@@ -18,6 +18,8 @@ export type PaymentStatus = "Unpaid" | "Deposit Paid" | "Paid" | "Invoice Sent" 
 
 export type DumpsterSize = "10 yd" | "15 yd" | "20 yd" | "30 yd";
 
+export type TruckType = "Company Truck" | "Personal Truck";
+
 export type JobCharge = {
   id: string;
   label: string;
@@ -40,6 +42,15 @@ export type Expense = {
   id: string;
   date: string;
   label: string;
+  amount: number;
+  notes: string;
+};
+
+export type DriverCashHandoff = {
+  id: string;
+  date: string;
+  driverId: string;
+  driverName: string;
   amount: number;
   notes: string;
 };
@@ -70,12 +81,14 @@ export type RentalJob = {
   deliveryDriverName?: string;
   deliveryDispatchDate?: string;
   deliveryDispatchNotes?: string;
+  deliveryTruckType?: TruckType;
   deliveryCompletedAt?: string;
   deliveryCompletionNotes?: string;
   pickupDriverId?: string;
   pickupDriverName?: string;
   pickupDispatchDate?: string;
   pickupDispatchNotes?: string;
+  pickupTruckType?: TruckType;
   pickupCompletedAt?: string;
   pickupCompletionNotes?: string;
   startingDumpsterAddress?: string;

@@ -1,4 +1,4 @@
-import type { Dumpster, DumpsterStatus, Expense, JobCharge, JobPayment, PaymentStatus, RentalJob } from "@/lib/types";
+import type { DriverCashHandoff, Dumpster, DumpsterStatus, Expense, JobCharge, JobPayment, PaymentStatus, RentalJob } from "@/lib/types";
 
 export const EMPTY_DUMPSTERS: Dumpster[] = [];
 export const EMPTY_JOBS: RentalJob[] = [];
@@ -6,6 +6,7 @@ export const EMPTY_JOBS: RentalJob[] = [];
 export const DUMPSTER_STORAGE_KEY = "kp-hauling-dumpsters";
 export const JOB_STORAGE_KEY = "kp-hauling-jobs";
 export const EXPENSE_STORAGE_KEY = "kp-hauling-expenses";
+export const DRIVER_CASH_HANDOFF_STORAGE_KEY = "kp-hauling-driver-cash-handoffs";
 
 export type NewDumpsterInput = {
   number: string;
@@ -114,5 +115,16 @@ export function createExpense(input: NewExpenseInput): Expense {
     label: input.label.trim() || "Expense",
     amount: input.amount,
     notes: input.notes.trim()
+  };
+}
+
+export function createDriverCashHandoff(driverId: string, driverName: string, amount: number, notes: string): DriverCashHandoff {
+  return {
+    id: makeId("cash-handoff"),
+    date: new Date().toISOString().slice(0, 10),
+    driverId,
+    driverName,
+    amount,
+    notes: notes.trim()
   };
 }

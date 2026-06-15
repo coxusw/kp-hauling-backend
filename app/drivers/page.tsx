@@ -5,10 +5,83 @@ import { Plus, Trash2 } from "lucide-react";
 import { useAuth } from "@/components/auth-provider";
 import { Field, SelectField } from "@/components/form-fields";
 import { PageHeader } from "@/components/page-header";
-import type { UserRole } from "@/lib/auth";
+import type { AppUser, UserRole } from "@/lib/auth";
+import { currency } from "@/lib/data";
+import { useOperations } from "@/lib/use-operations";
+
+function DriverMoneyActions({
+  user,
+  cashHeld,
+  onCashHandoff,
+  onDriverPay
+}: {
+  user: AppUser;
+  cashHeld: number;
+  onCashHandoff: (user: AppUser, amount: number, notes: string) => void;
+  onDriverPay: (user: AppUser, amount: number, notes: string) => void;
+}) {
+  const [handoffAmount, setHandoffAmount] = useState("");
+  const [handoffNotes, setHandoffNotes] = useState("");
+  const [payAmount, setPayAmount] = useState("");
+  const [payNotes, setPayNotes] = useState("");
+
+  function submitHandoff(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const amount = Number(handoffAmount);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      return;
+    }
+    onCashHandoff(user, amount, handoffNotes);
+    setHandoffAmount("");
+    setHandoffNotes("");
+  }
+
+  function submitPay(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const amount = Number(payAmount);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      return;
+    }
+    onDriverPay(user, amount, payNotes);
+    setPayAmount("");
+    setPayNotes("");
+  }
+
+  return (
+    <div className="space-y-2 sm:col-span-full">
+      <div className="rounded border border-kp-line bg-kp-paper p-2">
+        <p className="text-xs font-bold uppercase tracking-normal text-stone-500">Cash Held By Driver</p>
+        <p className={cashHeld > 0 ? "text-lg font-bold text-amber-800" : "text-lg font-bold text-kp-ink"}>{currency(cashHeld)}</p>
+      </div>
+      <div className="grid gap-2 lg:grid-cols-2">
+        <form onSubmit={submitHandoff} className="rounded border border-kp-line bg-kp-paper p-2">
+          <p className="mb-2 text-xs font-bold uppercase tracking-normal text-stone-500">Collect Cash From Driver</p>
+          <div className="grid gap-2 sm:grid-cols-[100px_1fr]">
+            <Field label="Amount" type="number" min={0} step="0.01" max={Math.max(cashHeld, 0)} value={handoffAmount} onChange={(event) => setHandoffAmount(event.target.value)} />
+            <Field label="Notes" value={handoffNotes} onChange={(event) => setHandoffNotes(event.target.value)} placeholder="Turned in to owner" />
+          </div>
+          <button type="submit" disabled={cashHeld <= 0} className="mt-2 min-h-9 rounded bg-white px-3 text-xs font-bold text-stone-700 ring-1 ring-kp-line disabled:cursor-not-allowed disabled:bg-stone-100 disabled:text-stone-400">
+            Mark Collected
+          </button>
+        </form>
+        <form onSubmit={submitPay} className="rounded border border-kp-line bg-kp-paper p-2">
+          <p className="mb-2 text-xs font-bold uppercase tracking-normal text-stone-500">Pay Driver</p>
+          <div className="grid gap-2 sm:grid-cols-[100px_1fr]">
+            <Field label="Amount" type="number" min={0} step="0.01" value={payAmount} onChange={(event) => setPayAmount(event.target.value)} />
+            <Field label="Notes" value={payNotes} onChange={(event) => setPayNotes(event.target.value)} placeholder="Route pay, day pay..." />
+          </div>
+          <button type="submit" className="mt-2 min-h-9 rounded bg-white px-3 text-xs font-bold text-stone-700 ring-1 ring-kp-line">
+            Log Driver Pay
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
 
 export default function DriversPage() {
   const auth = useAuth();
+  const operations = useOperations();
   const [message, setMessage] = useState("");
   const [form, setForm] = useState({
     name: "",
@@ -33,6 +106,33 @@ export default function DriversPage() {
   function removeUser(userId: string) {
     const result = auth.removeUser(userId);
     setMessage(result.ok ? "Login removed." : result.message ?? "Unable to remove login.");
+  }
+
+  function getDriverCashHeld(user: AppUser) {
+    const collected = operations.jobs.reduce((total, job) => {
+      return total + (job.payments ?? [])
+        .filter((payment) => payment.method === "Cash" && payment.driverId === user.id)
+        .reduce((paymentTotal, payment) => paymentTotal + payment.amount, 0);
+    }, 0);
+    const turnedIn = operations.driverCashHandoffs
+      .filter((handoff) => handoff.driverId === user.id)
+      .reduce((total, handoff) => total + handoff.amount, 0);
+    return Math.max(collected - turnedIn, 0);
+  }
+
+  function addCashHandoff(user: AppUser, amount: number, notes: string) {
+    const cashHeld = getDriverCashHeld(user);
+    if (amount > cashHeld) {
+      setMessage(`${user.name} only has ${currency(cashHeld)} marked as driver-held cash.`);
+      return;
+    }
+    operations.addDriverCashHandoff(user.id, user.name, amount, notes || "Cash turned in to owner");
+    setMessage(`Collected ${currency(amount)} from ${user.name}.`);
+  }
+
+  function addDriverPay(user: AppUser, amount: number, notes: string) {
+    operations.addDriverPay(user.name, amount, notes || "Driver pay");
+    setMessage(`Logged ${currency(amount)} driver pay for ${user.name}.`);
   }
 
   return (
@@ -64,7 +164,7 @@ export default function DriversPage() {
           </div>
           <div className="divide-y divide-kp-line">
             {auth.users.map((user) => (
-              <div key={user.id} className="grid gap-2 p-3 text-sm sm:grid-cols-[1fr_1fr_120px_120px_90px] sm:items-center">
+              <div key={user.id} className="grid gap-2 p-3 text-sm sm:grid-cols-[1fr_1fr_110px_110px_90px] sm:items-start">
                 <div>
                   <p className="font-bold text-kp-ink">{user.name}</p>
                   <p className="text-xs text-stone-500">{user.email}</p>
@@ -82,6 +182,9 @@ export default function DriversPage() {
                   <Trash2 aria-hidden className="h-4 w-4" />
                   Remove
                 </button>
+                {user.role === "driver" ? (
+                  <DriverMoneyActions user={user} cashHeld={getDriverCashHeld(user)} onCashHandoff={addCashHandoff} onDriverPay={addDriverPay} />
+                ) : null}
               </div>
             ))}
           </div>

@@ -231,7 +231,9 @@ export default function JobEditPage() {
             <h2 className="font-bold text-kp-ink">Job Activity</h2>
             <div className="mt-3 space-y-3 text-sm text-stone-700">
               <p><span className="font-bold">Drop-off:</span> {displayDate(job.dropOffDate)} {job.dropOffTime}</p>
+              <p><span className="font-bold">Drop-off truck:</span> {job.deliveryTruckType || "Not completed"}</p>
               <p><span className="font-bold">Pickup:</span> {displayDate(job.expectedPickupDate)} {job.expectedPickupTime}</p>
+              <p><span className="font-bold">Pickup truck:</span> {job.pickupTruckType || "Not completed"}</p>
               <p><span className="font-bold">Destination:</span> {job.pickupDestinationAddress || "Not entered"}</p>
               <div>
                 <p className="font-bold text-kp-ink">Charges</p>
