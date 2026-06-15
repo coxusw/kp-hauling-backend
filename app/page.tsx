@@ -89,6 +89,23 @@ export default function DashboardPage() {
 
         <Section title="Dashboard Alerts">
           <div className="space-y-3">
+            {operations.notifications.length > 0 ? operations.notifications.slice(0, 6).map((notification) => (
+              <div key={notification.id} className="rounded border border-emerald-200 bg-white p-4 shadow-panel">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="font-bold text-kp-ink">{notification.title}</p>
+                    <p className="mt-1 text-sm leading-5 text-stone-600">{notification.detail}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => operations.clearOwnerNotification(notification.id)}
+                    className="rounded border border-kp-line px-2 py-1 text-xs font-bold text-stone-600"
+                  >
+                    Clear
+                  </button>
+                </div>
+              </div>
+            )) : null}
             {alerts.length > 0 ? alerts.map((alert) => (
               <div
                 key={alert.id}

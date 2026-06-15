@@ -43,6 +43,7 @@ export function DispatchJobCard({
   const dispatchDateDefault = isPickupDispatch ? job.expectedPickupDate : job.dropOffDate;
   const [dispatchDate, setDispatchDate] = useState(dispatchDateDefault);
   const [dispatchDriverId, setDispatchDriverId] = useState(isPickupDispatch ? job.pickupDriverId ?? "" : job.deliveryDriverId ?? "");
+  const [dispatchNotes, setDispatchNotes] = useState(isPickupDispatch ? job.pickupDispatchNotes ?? "" : job.deliveryDispatchNotes ?? "");
   const availableDrivers = drivers.filter((driver) => canManageOperations(driver.role) || isDriverAvailableOnDate(driver, dispatchDate));
   const assignedDriver = isPickupDispatch ? job.pickupDriverName : job.deliveryDriverName;
   const balance = getJobBalance(job);
@@ -87,18 +88,28 @@ export function DispatchJobCard({
     if (!driver) {
       return;
     }
+    const existingDriver = isPickupDispatch ? job.pickupDriverName : job.deliveryDriverName;
+    if (existingDriver) {
+      const action = existingDriver === driver.name ? "update this dispatch" : `switch dispatch to ${driver.name}`;
+      const shouldSwitch = window.confirm(`${existingDriver} is already dispatched for this ${isPickupDispatch ? "pickup" : "delivery"}. Are you sure you want to ${action}?`);
+      if (!shouldSwitch) {
+        return;
+      }
+    }
 
     if (isPickupDispatch) {
       onUpdate(job.id, {
         pickupDriverId: driver.id,
         pickupDriverName: driver.name,
-        pickupDispatchDate: dispatchDate
+        pickupDispatchDate: dispatchDate,
+        pickupDispatchNotes: dispatchNotes.trim()
       });
     } else {
       onUpdate(job.id, {
         deliveryDriverId: driver.id,
         deliveryDriverName: driver.name,
-        deliveryDispatchDate: dispatchDate
+        deliveryDispatchDate: dispatchDate,
+        deliveryDispatchNotes: dispatchNotes.trim()
       });
     }
   }
@@ -179,6 +190,15 @@ export function DispatchJobCard({
                 </option>
               ))}
             </select>
+          </label>
+          <label className="block text-xs font-bold text-stone-700">
+            Driver Dispatch Note
+            <textarea
+              value={dispatchNotes}
+              onChange={(event) => setDispatchNotes(event.target.value)}
+              placeholder="Place at curb, collect $250 cash, call before arrival..."
+              className="mt-1 min-h-16 w-full rounded border border-kp-line bg-white px-2 py-2 text-xs text-kp-ink"
+            />
           </label>
         </div>
         {availableDrivers.length === 0 ? (

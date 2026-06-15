@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { FormEvent, useMemo, useState } from "react";
 import { Check, Clock, MapPin, PackageCheck, Phone, Truck } from "lucide-react";
 import { displayDate, displayTime } from "@/lib/data";
 import type { RentalJob } from "@/lib/types";
@@ -13,11 +13,22 @@ import { useAuth } from "@/components/auth-provider";
 type DriverTaskProps = {
   job: RentalJob;
   type: "delivery" | "pickup";
-  onComplete: (jobId: string, type: "delivery" | "pickup") => void;
+  onComplete: (jobId: string, type: "delivery" | "pickup", completedAt: string, notes: string) => void;
 };
 
 function DriverTask({ job, type, onComplete }: DriverTaskProps) {
   const isDelivery = type === "delivery";
+  const [completedAt, setCompletedAt] = useState(new Date().toTimeString().slice(0, 5));
+  const [notes, setNotes] = useState("");
+  const dispatchNotes = isDelivery ? job.deliveryDispatchNotes : job.pickupDispatchNotes;
+
+  function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!completedAt || !notes.trim()) {
+      return;
+    }
+    onComplete(job.id, type, completedAt, notes);
+  }
 
   return (
     <article className="rounded border border-kp-line bg-white p-4 shadow-panel">
@@ -45,16 +56,44 @@ function DriverTask({ job, type, onComplete }: DriverTaskProps) {
           <span>{job.phone || "No phone"}</span>
         </a>
         <p className="rounded bg-kp-paper p-3 leading-5">{job.jobNotes || "No notes entered."}</p>
+        {dispatchNotes ? (
+          <p className="rounded border border-amber-200 bg-amber-50 p-3 font-semibold leading-5 text-amber-900">
+            Dispatch note: {dispatchNotes}
+          </p>
+        ) : null}
       </div>
 
-      <button
-        type="button"
-        onClick={() => onComplete(job.id, type)}
-        className="mt-4 flex min-h-11 w-full items-center justify-center gap-2 rounded bg-kp-green px-4 text-sm font-bold text-white transition hover:bg-kp-ink"
-      >
-        <Check aria-hidden className="h-4 w-4" />
-        {isDelivery ? "Mark Delivered" : "Mark Picked Up"}
-      </button>
+      <form onSubmit={submit} className="mt-4 rounded border border-kp-line bg-kp-paper p-3">
+        <div className="grid gap-3 sm:grid-cols-[130px_1fr]">
+          <label className="block text-sm font-bold text-stone-700">
+            Actual Time
+            <input
+              type="time"
+              required
+              value={completedAt}
+              onChange={(event) => setCompletedAt(event.target.value)}
+              className="mt-1 min-h-10 w-full rounded border border-kp-line bg-white px-3 text-sm text-kp-ink"
+            />
+          </label>
+          <label className="block text-sm font-bold text-stone-700">
+            Driver Notes
+            <input
+              required
+              value={notes}
+              onChange={(event) => setNotes(event.target.value)}
+              placeholder={isDelivery ? "Dropped at curb, collected cash..." : "Picked up, driveway clear..."}
+              className="mt-1 min-h-10 w-full rounded border border-kp-line bg-white px-3 text-sm text-kp-ink"
+            />
+          </label>
+        </div>
+        <button
+          type="submit"
+          className="mt-3 flex min-h-11 w-full items-center justify-center gap-2 rounded bg-kp-green px-4 text-sm font-bold text-white transition hover:bg-kp-ink"
+        >
+          <Check aria-hidden className="h-4 w-4" />
+          {isDelivery ? "Mark Delivered" : "Mark Picked Up"}
+        </button>
+      </form>
     </article>
   );
 }
@@ -103,12 +142,12 @@ export default function DriverPage() {
     pickups: operations.jobs.filter((job) => ["Delivered", "Pickup Needed", "Overdue"].includes(job.status) && !job.pickupDriverId)
   }), [operations.jobs]);
 
-  function completeTask(jobId: string, type: "delivery" | "pickup") {
+  function completeTask(jobId: string, type: "delivery" | "pickup", completedAt: string, notes: string) {
     // Future Supabase integration point: update the rental job and dumpster status in one transaction.
     if (type === "delivery") {
-      operations.completeDelivery(jobId);
+      operations.completeDelivery(jobId, auth.currentUser?.name, completedAt, notes);
     } else {
-      operations.completePickup(jobId);
+      operations.completePickup(jobId, auth.currentUser?.name, completedAt, notes);
     }
   }
 

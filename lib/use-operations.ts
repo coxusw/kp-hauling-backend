@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import type { Dumpster, Expense, PaymentStatus, RentalJob } from "@/lib/types";
+import type { Dumpster, Expense, OwnerNotification, PaymentStatus, RentalJob } from "@/lib/types";
 import {
   createCharge,
   createDumpster,
@@ -13,6 +13,7 @@ import {
   EMPTY_JOBS,
   EXPENSE_STORAGE_KEY,
   JOB_STORAGE_KEY,
+  makeId,
   type NewExpenseInput,
   type NewDumpsterInput,
   type NewJobInput
@@ -54,12 +55,14 @@ export function useOperations() {
   const [dumpsters, setDumpsters] = useState<Dumpster[]>(EMPTY_DUMPSTERS);
   const [jobs, setJobs] = useState<RentalJob[]>(EMPTY_JOBS);
   const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [notifications, setNotifications] = useState<OwnerNotification[]>([]);
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
     setDumpsters(normalizeDumpsters(readStored(DUMPSTER_STORAGE_KEY, EMPTY_DUMPSTERS)));
     setJobs(normalizeJobs(readStored(JOB_STORAGE_KEY, EMPTY_JOBS)));
     setExpenses(readStored(EXPENSE_STORAGE_KEY, []));
+    setNotifications(readStored("kp-hauling-owner-notifications", []));
     setLoaded(true);
   }, []);
 
@@ -81,11 +84,18 @@ export function useOperations() {
     }
   }, [expenses, loaded]);
 
+  useEffect(() => {
+    if (loaded) {
+      window.localStorage.setItem("kp-hauling-owner-notifications", JSON.stringify(notifications));
+    }
+  }, [loaded, notifications]);
+
   return useMemo(
     () => ({
       dumpsters,
       jobs,
       expenses,
+      notifications,
       loaded,
       addDumpster(input: NewDumpsterInput) {
         setDumpsters((current) => [...current, createDumpster(input)]);
@@ -160,6 +170,20 @@ export function useOperations() {
             return { ...next, paymentStatus: getJobBalance(next) <= 0 ? "Paid" : next.paymentStatus };
           })
         );
+      },
+      addOwnerNotification(title: string, detail: string) {
+        setNotifications((current) => [
+          {
+            id: makeId("note"),
+            createdAt: new Date().toISOString(),
+            title,
+            detail
+          },
+          ...current
+        ]);
+      },
+      clearOwnerNotification(notificationId: string) {
+        setNotifications((current) => current.filter((notification) => notification.id !== notificationId));
       },
       updateJobStatus(jobId: string, status: RentalJob["status"]) {
         setJobs((current) =>
@@ -281,9 +305,9 @@ export function useOperations() {
           current.map((dumpster) => (dumpster.id === dumpsterId && dumpster.status === "Out of Service" ? { ...dumpster, status: "Available" } : dumpster))
         );
       },
-      completeDelivery(jobId: string) {
-        setJobs((current) => current.map((job) => (job.id === jobId ? { ...job, status: "Delivered" } : job)));
+      completeDelivery(jobId: string, driverName?: string, completedAt?: string, notes?: string) {
         const deliveredJob = jobs.find((job) => job.id === jobId);
+        setJobs((current) => current.map((job) => (job.id === jobId ? { ...job, status: "Delivered", deliveryCompletedAt: completedAt, deliveryCompletionNotes: notes?.trim() } : job)));
         setDumpsters((current) =>
           current.map((dumpster) =>
             dumpster.currentJobId === jobId
@@ -296,8 +320,19 @@ export function useOperations() {
               : dumpster
           )
         );
+        if (deliveredJob) {
+          setNotifications((current) => [
+            {
+              id: makeId("note"),
+              createdAt: new Date().toISOString(),
+              title: `${driverName || deliveredJob.deliveryDriverName || "Driver"} dropped off dumpster ${deliveredJob.dumpsterNumber ?? "Unassigned"}`,
+              detail: notes?.trim() || "No driver notes entered."
+            },
+            ...current
+          ]);
+        }
       },
-      completePickup(jobId: string) {
+      completePickup(jobId: string, driverName?: string, completedAt?: string, notes?: string) {
         const pickupJob = jobs.find((job) => job.id === jobId);
         const destination = pickupJob?.pickupDestinationAddress?.trim() || "KP yard";
         setJobs((current) =>
@@ -307,7 +342,9 @@ export function useOperations() {
                   ...job,
                   status: "Picked Up / Completed",
                   actualPickupDate: new Date().toISOString().slice(0, 10),
-                  pickupDestinationAddress: destination
+                  pickupDestinationAddress: destination,
+                  pickupCompletedAt: completedAt,
+                  pickupCompletionNotes: notes?.trim()
                 }
               : job
           )
@@ -326,13 +363,25 @@ export function useOperations() {
               : dumpster
           )
         );
+        if (pickupJob) {
+          setNotifications((current) => [
+            {
+              id: makeId("note"),
+              createdAt: new Date().toISOString(),
+              title: `${driverName || pickupJob.pickupDriverName || "Driver"} picked up dumpster ${pickupJob.dumpsterNumber ?? "Unassigned"}`,
+              detail: notes?.trim() || "No driver notes entered."
+            },
+            ...current
+          ]);
+        }
       },
       clearAll() {
         setDumpsters([]);
         setJobs([]);
         setExpenses([]);
+        setNotifications([]);
       }
     }),
-    [dumpsters, expenses, jobs, loaded]
+    [dumpsters, expenses, jobs, loaded, notifications]
   );
 }

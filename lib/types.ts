@@ -65,9 +65,15 @@ export type RentalJob = {
   deliveryDriverId?: string;
   deliveryDriverName?: string;
   deliveryDispatchDate?: string;
+  deliveryDispatchNotes?: string;
+  deliveryCompletedAt?: string;
+  deliveryCompletionNotes?: string;
   pickupDriverId?: string;
   pickupDriverName?: string;
   pickupDispatchDate?: string;
+  pickupDispatchNotes?: string;
+  pickupCompletedAt?: string;
+  pickupCompletionNotes?: string;
   startingDumpsterAddress?: string;
   estimatedOneWayMiles?: number;
   pickupDestinationAddress?: string;
@@ -94,4 +100,12 @@ export type DashboardAlert = {
   title: string;
   detail: string;
   severity: AlertSeverity;
+};
+
+export type OwnerNotification = {
+  id: string;
+  createdAt: string;
+  title: string;
+  detail: string;
+  read?: boolean;
 };
