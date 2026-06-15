@@ -1,9 +1,12 @@
-import { MapPin, Trash2 } from "lucide-react";
+import { FormEvent, useState } from "react";
+import { Edit2, MapPin, Save, Trash2 } from "lucide-react";
 import type { Dumpster } from "@/lib/types";
+import { Field, SelectField, TextAreaField } from "@/components/form-fields";
 import { StatusBadge } from "@/components/status-badge";
 
 export function DumpsterCard({
   dumpster,
+  onUpdate,
   onDelete,
   onTakeOutOfService,
   onPutInService,
@@ -11,12 +14,22 @@ export function DumpsterCard({
   compact = false
 }: {
   dumpster: Dumpster;
+  onUpdate?: (dumpsterId: string, updates: Partial<Dumpster>) => void;
   onDelete?: (dumpsterId: string) => void;
   onTakeOutOfService?: (dumpsterId: string) => void;
   onPutInService?: (dumpsterId: string) => void;
   deleteDisabledReason?: string;
   compact?: boolean;
 }) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [editForm, setEditForm] = useState<Partial<Dumpster>>(dumpster);
+
+  function saveEdit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    onUpdate?.(dumpster.id, editForm);
+    setIsEditing(false);
+  }
+
   if (compact) {
     return (
       <article className="rounded border border-kp-line bg-white p-3 shadow-sm">
@@ -49,6 +62,61 @@ export function DumpsterCard({
         <span>{dumpster.currentAddress || dumpster.currentLocation}</span>
       </p>
       <p className="mt-3 text-sm text-stone-600">{dumpster.notes}</p>
+      {isEditing ? (
+        <form onSubmit={saveEdit} className="mt-4 rounded border border-kp-line bg-kp-paper p-3">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Field label="Dumpster ID / Number" value={editForm.number ?? ""} onChange={(event) => setEditForm({ ...editForm, number: event.target.value })} />
+            <SelectField label="Size" value={editForm.size ?? dumpster.size} onChange={(event) => setEditForm({ ...editForm, size: event.target.value as Dumpster["size"] })}>
+              <option>10 yd</option>
+              <option>15 yd</option>
+              <option>20 yd</option>
+              <option>30 yd</option>
+            </SelectField>
+            <SelectField label="Type" value={editForm.type ?? dumpster.type} onChange={(event) => setEditForm({ ...editForm, type: event.target.value as Dumpster["type"] })}>
+              <option>Roll-off</option>
+              <option>Concrete</option>
+              <option>Yard Waste</option>
+              <option>Mixed Debris</option>
+            </SelectField>
+            <SelectField label="Status" value={editForm.status ?? dumpster.status} onChange={(event) => setEditForm({ ...editForm, status: event.target.value as Dumpster["status"] })}>
+              <option>Available</option>
+              <option>Scheduled Drop-Off</option>
+              <option>Delivered</option>
+              <option>Pickup Needed</option>
+              <option>Overdue</option>
+              <option>In Transit</option>
+              <option>Out of Service</option>
+            </SelectField>
+            <Field label="Current Location Label" value={editForm.currentLocation ?? ""} onChange={(event) => setEditForm({ ...editForm, currentLocation: event.target.value })} />
+            <Field label="Current Address" value={editForm.currentAddress ?? ""} onChange={(event) => setEditForm({ ...editForm, currentAddress: event.target.value })} placeholder="Street, city, state" />
+          </div>
+          <div className="mt-3">
+            <TextAreaField label="Notes" value={editForm.notes ?? ""} onChange={(event) => setEditForm({ ...editForm, notes: event.target.value })} />
+          </div>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <button type="submit" className="flex min-h-9 items-center gap-2 rounded bg-kp-green px-3 text-xs font-bold text-white">
+              <Save aria-hidden className="h-4 w-4" />
+              Save Dumpster
+            </button>
+            <button type="button" onClick={() => setIsEditing(false)} className="rounded border border-kp-line bg-white px-3 text-xs font-bold text-stone-700">
+              Cancel
+            </button>
+          </div>
+        </form>
+      ) : null}
+      {onUpdate ? (
+        <button
+          type="button"
+          onClick={() => {
+            setEditForm(dumpster);
+            setIsEditing((current) => !current);
+          }}
+          className="mt-4 flex min-h-9 items-center gap-2 rounded border border-kp-line bg-white px-3 text-xs font-bold text-stone-700 transition hover:border-kp-green hover:text-kp-green"
+        >
+          <Edit2 aria-hidden className="h-4 w-4" />
+          Edit Dumpster
+        </button>
+      ) : null}
       {onTakeOutOfService && dumpster.status === "Available" ? (
         <button
           type="button"

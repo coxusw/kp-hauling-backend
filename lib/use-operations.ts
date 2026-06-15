@@ -90,6 +90,22 @@ export function useOperations() {
       addDumpster(input: NewDumpsterInput) {
         setDumpsters((current) => [...current, createDumpster(input)]);
       },
+      updateDumpster(dumpsterId: string, updates: Partial<Dumpster>) {
+        setDumpsters((current) =>
+          current.map((dumpster) =>
+            dumpster.id === dumpsterId
+              ? {
+                  ...dumpster,
+                  ...updates,
+                  number: updates.number?.trim() || dumpster.number,
+                  currentLocation: updates.currentLocation?.trim() || "KP yard",
+                  currentAddress: updates.currentAddress?.trim() ?? dumpster.currentAddress,
+                  notes: updates.notes?.trim() ?? dumpster.notes
+                }
+              : dumpster
+          )
+        );
+      },
       addJob(input: NewJobInput) {
         const newJob = createJob(input, dumpsters);
         setJobs((current) => [...current, newJob]);

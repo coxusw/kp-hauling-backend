@@ -35,6 +35,7 @@ export default function InventoryPage() {
                   <DumpsterCard
                     key={dumpster.id}
                     dumpster={dumpster}
+                    onUpdate={operations.updateDumpster}
                     onDelete={operations.deleteDumpster}
                     onTakeOutOfService={operations.takeDumpsterOutOfService}
                     onPutInService={operations.putDumpsterInService}
