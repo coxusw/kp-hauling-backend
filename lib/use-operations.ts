@@ -305,6 +305,47 @@ export function useOperations() {
           })
         ]);
       },
+      markDriverRoutePaid(jobId: string, routeType: "delivery" | "pickup", amount: number, notes: string) {
+        const targetJob = jobs.find((job) => job.id === jobId);
+        if (!targetJob) {
+          return;
+        }
+        const driverName = routeType === "delivery" ? targetJob.deliveryDriverName : targetJob.pickupDriverName;
+        if (!driverName) {
+          return;
+        }
+
+        const paidAt = new Date().toISOString().slice(0, 10);
+        setJobs((current) =>
+          current.map((job) => {
+            if (job.id !== jobId) {
+              return job;
+            }
+            return routeType === "delivery"
+              ? {
+                  ...job,
+                  deliveryDriverPaidAt: paidAt,
+                  deliveryDriverPayAmount: amount,
+                  deliveryDriverPayNotes: notes.trim()
+                }
+              : {
+                  ...job,
+                  pickupDriverPaidAt: paidAt,
+                  pickupDriverPayAmount: amount,
+                  pickupDriverPayNotes: notes.trim()
+                };
+          })
+        );
+        setExpenses((current) => [
+          ...current,
+          createExpense({
+            date: paidAt,
+            label: `Driver route pay - ${driverName}`,
+            amount,
+            notes: `${routeType === "delivery" ? "Delivery" : "Pickup"} route for ${targetJob.customerName}${notes.trim() ? `: ${notes.trim()}` : ""}`
+          })
+        ]);
+      },
       addDriverCashHandoff(driverId: string, driverName: string, amount: number, notes: string) {
         setDriverCashHandoffs((current) => [...current, createDriverCashHandoff(driverId, driverName, amount, notes)]);
       },

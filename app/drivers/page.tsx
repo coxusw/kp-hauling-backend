@@ -12,11 +12,13 @@ import { useOperations } from "@/lib/use-operations";
 function DriverMoneyActions({
   user,
   cashHeld,
+  routePayDueCount,
   onCashHandoff,
   onDriverPay
 }: {
   user: AppUser;
   cashHeld: number;
+  routePayDueCount: number;
   onCashHandoff: (user: AppUser, amount: number, notes: string) => void;
   onDriverPay: (user: AppUser, amount: number, notes: string) => void;
 }) {
@@ -52,6 +54,9 @@ function DriverMoneyActions({
       <div className="rounded border border-kp-line bg-kp-paper p-2">
         <p className="text-xs font-bold uppercase tracking-normal text-stone-500">Cash Held By Driver</p>
         <p className={cashHeld > 0 ? "text-lg font-bold text-amber-800" : "text-lg font-bold text-kp-ink"}>{currency(cashHeld)}</p>
+        <p className={routePayDueCount > 0 ? "mt-1 text-xs font-bold text-amber-800" : "mt-1 text-xs font-semibold text-stone-500"}>
+          {routePayDueCount} route{routePayDueCount === 1 ? "" : "s"} need driver pay
+        </p>
       </div>
       <div className="grid gap-2 lg:grid-cols-2">
         <form onSubmit={submitHandoff} className="rounded border border-kp-line bg-kp-paper p-2">
@@ -120,6 +125,14 @@ export default function DriversPage() {
     return Math.max(collected - turnedIn, 0);
   }
 
+  function getDriverRoutePayDueCount(user: AppUser) {
+    return operations.jobs.reduce((total, job) => {
+      const deliveryNeedsPay = job.deliveryDriverId === user.id && job.deliveryCompletedAt && !job.deliveryDriverPaidAt;
+      const pickupNeedsPay = job.pickupDriverId === user.id && job.pickupCompletedAt && !job.pickupDriverPaidAt;
+      return total + (deliveryNeedsPay ? 1 : 0) + (pickupNeedsPay ? 1 : 0);
+    }, 0);
+  }
+
   function addCashHandoff(user: AppUser, amount: number, notes: string) {
     const cashHeld = getDriverCashHeld(user);
     if (amount > cashHeld) {
@@ -183,7 +196,13 @@ export default function DriversPage() {
                   Remove
                 </button>
                 {user.role === "driver" ? (
-                  <DriverMoneyActions user={user} cashHeld={getDriverCashHeld(user)} onCashHandoff={addCashHandoff} onDriverPay={addDriverPay} />
+                  <DriverMoneyActions
+                    user={user}
+                    cashHeld={getDriverCashHeld(user)}
+                    routePayDueCount={getDriverRoutePayDueCount(user)}
+                    onCashHandoff={addCashHandoff}
+                    onDriverPay={addDriverPay}
+                  />
                 ) : null}
               </div>
             ))}

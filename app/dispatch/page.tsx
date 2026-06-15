@@ -47,6 +47,7 @@ export default function DispatchPage() {
                     onCompletePickup={operations.completePickupWithDestination}
                     onAddCharge={operations.addJobCharge}
                     onAddPayment={operations.addJobPayment}
+                    onMarkDriverRoutePaid={operations.markDriverRoutePaid}
                     drivers={drivers}
                   />
                 )

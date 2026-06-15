@@ -47,6 +47,7 @@ export default function LogPage() {
       .filter((payment) => payment.method === "Cash" && payment.driverName)
       .map((payment) => ({ job, payment }))
   );
+  const paymentRows = operations.jobs.flatMap((job) => (job.payments ?? []).map((payment) => ({ job, payment })));
   const months = Array.from(
     new Set([
       ...finishedJobs.map((job) => monthKey(job.actualPickupDate ?? job.expectedPickupDate)),
@@ -58,28 +59,43 @@ export default function LogPage() {
   const filteredJobs = monthFilter === "all" ? finishedJobs : finishedJobs.filter((job) => monthKey(job.actualPickupDate ?? job.expectedPickupDate) === monthFilter);
   const filteredExpenses = monthFilter === "all" ? operations.expenses : operations.expenses.filter((expense) => monthKey(expense.date) === monthFilter);
   const filteredDriverCash = monthFilter === "all" ? driverCashRows : driverCashRows.filter(({ payment }) => monthKey(payment.date) === monthFilter);
+  const filteredDirectPayments = monthFilter === "all"
+    ? paymentRows.filter(({ payment }) => !(payment.method === "Cash" && payment.driverName))
+    : paymentRows.filter(({ payment }) => monthKey(payment.date) === monthFilter && !(payment.method === "Cash" && payment.driverName));
   const filteredDriverCashHandoffs = monthFilter === "all"
     ? operations.driverCashHandoffs
     : operations.driverCashHandoffs.filter((handoff) => monthKey(handoff.date) === monthFilter);
+  const allDriverCash = driverCashRows.reduce((total, { payment }) => total + payment.amount, 0);
+  const allDriverCashTurnedIn = operations.driverCashHandoffs.reduce((total, handoff) => total + handoff.amount, 0);
+  const filteredDirectCollected = filteredDirectPayments.reduce((total, { payment }) => total + payment.amount, 0);
+  const filteredCashTurnedIn = filteredDriverCashHandoffs.reduce((total, handoff) => total + handoff.amount, 0);
 
   const totals = {
     mileage: filteredJobs.reduce((total, job) => total + getJobMileageTotal(job), 0),
     billed: filteredJobs.reduce((total, job) => total + getJobTotal(job), 0),
-    collected: filteredJobs.reduce((total, job) => total + getJobPaymentsTotal(job), 0),
+    collected: filteredDirectCollected + filteredCashTurnedIn,
     balance: filteredJobs.reduce((total, job) => total + getJobBalance(job), 0),
     expenses: filteredExpenses.reduce((total, expense) => total + expense.amount, 0),
     driverCash: filteredDriverCash.reduce((total, { payment }) => total + payment.amount, 0),
     driverCashTurnedIn: filteredDriverCashHandoffs.reduce((total, handoff) => total + handoff.amount, 0)
   };
-  const driverCashHeld = Math.max(totals.driverCash - totals.driverCashTurnedIn, 0);
+  const driverCashHeld = monthFilter === "all"
+    ? Math.max(allDriverCash - allDriverCashTurnedIn, 0)
+    : Math.max(totals.driverCash - totals.driverCashTurnedIn, 0);
   const netIncome = totals.collected - totals.expenses;
 
   const projectionRows = useMemo(() => {
     const grouped = new Map<string, { month: string; income: number; expenses: number }>();
-    finishedJobs.forEach((job) => {
-      const key = monthKey(job.actualPickupDate ?? job.expectedPickupDate);
+    paymentRows.filter(({ payment }) => !(payment.method === "Cash" && payment.driverName)).forEach(({ payment }) => {
+      const key = monthKey(payment.date);
       const current = grouped.get(key) ?? { month: key, income: 0, expenses: 0 };
-      current.income += getJobPaymentsTotal(job);
+      current.income += payment.amount;
+      grouped.set(key, current);
+    });
+    operations.driverCashHandoffs.forEach((handoff) => {
+      const key = monthKey(handoff.date);
+      const current = grouped.get(key) ?? { month: key, income: 0, expenses: 0 };
+      current.income += handoff.amount;
       grouped.set(key, current);
     });
     operations.expenses.forEach((expense) => {
@@ -89,7 +105,7 @@ export default function LogPage() {
       grouped.set(key, current);
     });
     return Array.from(grouped.values()).sort((a, b) => a.month.localeCompare(b.month));
-  }, [finishedJobs, operations.expenses]);
+  }, [operations.driverCashHandoffs, operations.expenses, paymentRows]);
 
   const maxProjection = Math.max(...projectionRows.map((row) => row.income), 1);
   const points = projectionRows
@@ -196,11 +212,10 @@ export default function LogPage() {
             </label>
           </div>
 
-          <div className="mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8">
+          <div className="mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
             <div className="rounded border border-kp-line bg-white p-3"><p className="text-xs font-bold text-stone-500">Mileage</p><p className="text-2xl font-bold">{totals.mileage.toFixed(1)}</p></div>
             <div className="rounded border border-kp-line bg-white p-3"><p className="text-xs font-bold text-stone-500">Billed</p><p className="text-2xl font-bold">{currency(totals.billed)}</p></div>
             <div className="rounded border border-kp-line bg-white p-3"><p className="text-xs font-bold text-stone-500">Collected</p><p className="text-2xl font-bold">{currency(totals.collected)}</p></div>
-            <div className="rounded border border-kp-line bg-white p-3"><p className="text-xs font-bold text-stone-500">Driver Cash</p><p className="text-2xl font-bold">{currency(totals.driverCash)}</p></div>
             <div className="rounded border border-kp-line bg-white p-3"><p className="text-xs font-bold text-stone-500">Driver Cash Held</p><p className="text-2xl font-bold">{currency(driverCashHeld)}</p></div>
             <div className="rounded border border-kp-line bg-white p-3"><p className="text-xs font-bold text-stone-500">Balances Owed</p><p className="text-2xl font-bold">{currency(totals.balance)}</p></div>
             <div className="rounded border border-kp-line bg-white p-3"><p className="text-xs font-bold text-stone-500">Expenses</p><p className="text-2xl font-bold">{currency(totals.expenses)}</p></div>

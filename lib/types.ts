@@ -84,6 +84,9 @@ export type RentalJob = {
   deliveryTruckType?: TruckType;
   deliveryCompletedAt?: string;
   deliveryCompletionNotes?: string;
+  deliveryDriverPaidAt?: string;
+  deliveryDriverPayAmount?: number;
+  deliveryDriverPayNotes?: string;
   pickupDriverId?: string;
   pickupDriverName?: string;
   pickupDispatchDate?: string;
@@ -91,6 +94,9 @@ export type RentalJob = {
   pickupTruckType?: TruckType;
   pickupCompletedAt?: string;
   pickupCompletionNotes?: string;
+  pickupDriverPaidAt?: string;
+  pickupDriverPayAmount?: number;
+  pickupDriverPayNotes?: string;
   startingDumpsterAddress?: string;
   estimatedOneWayMiles?: number;
   pickupDestinationAddress?: string;

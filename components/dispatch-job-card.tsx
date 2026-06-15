@@ -18,6 +18,7 @@ type DispatchJobCardProps = {
   onCompletePickup: (jobId: string, pickupDestinationAddress: string, pickupOneWayMiles?: number) => void;
   onAddCharge: (jobId: string, label: string, amount: number) => void;
   onAddPayment: (jobId: string, amount: number, note: string) => void;
+  onMarkDriverRoutePaid: (jobId: string, routeType: "delivery" | "pickup", amount: number, notes: string) => void;
   drivers: AppUser[];
 };
 
@@ -30,13 +31,16 @@ export function DispatchJobCard({
   onCompletePickup,
   onAddCharge,
   onAddPayment,
+  onMarkDriverRoutePaid,
   drivers
 }: DispatchJobCardProps) {
-  const [panel, setPanel] = useState<"charge" | "payment" | "pickup" | null>(null);
+  const [panel, setPanel] = useState<"charge" | "payment" | "pickup" | "driverPay" | null>(null);
   const [chargeLabel, setChargeLabel] = useState("");
   const [chargeAmount, setChargeAmount] = useState("");
   const [paymentAmount, setPaymentAmount] = useState("");
   const [paymentNote, setPaymentNote] = useState("");
+  const [driverPayAmount, setDriverPayAmount] = useState("");
+  const [driverPayNotes, setDriverPayNotes] = useState("");
   const [pickupDestination, setPickupDestination] = useState(job.pickupDestinationAddress || "KP yard");
   const [pickupMiles, setPickupMiles] = useState(job.pickupOneWayMiles === undefined ? "" : String(job.pickupOneWayMiles));
   const isPickupDispatch = job.status === "Delivered" || job.status === "Pickup Needed" || job.status === "Overdue";
@@ -46,6 +50,9 @@ export function DispatchJobCard({
   const [dispatchNotes, setDispatchNotes] = useState(isPickupDispatch ? job.pickupDispatchNotes ?? "" : job.deliveryDispatchNotes ?? "");
   const availableDrivers = drivers.filter((driver) => canManageOperations(driver.role) || isDriverAvailableOnDate(driver, dispatchDate));
   const assignedDriver = isPickupDispatch ? job.pickupDriverName : job.deliveryDriverName;
+  const routeType = isPickupDispatch ? "pickup" : "delivery";
+  const driverPaidAt = isPickupDispatch ? job.pickupDriverPaidAt : job.deliveryDriverPaidAt;
+  const driverPayAmountLogged = isPickupDispatch ? job.pickupDriverPayAmount : job.deliveryDriverPayAmount;
   const paid = getJobPaymentsTotal(job);
   const balance = getJobBalance(job);
 
@@ -70,6 +77,18 @@ export function DispatchJobCard({
     onAddPayment(job.id, amount, paymentNote);
     setPaymentAmount("");
     setPaymentNote("");
+    setPanel(null);
+  }
+
+  function submitDriverPay(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const amount = Number(driverPayAmount);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      return;
+    }
+    onMarkDriverRoutePaid(job.id, routeType, amount, driverPayNotes);
+    setDriverPayAmount("");
+    setDriverPayNotes("");
     setPanel(null);
   }
 
@@ -229,6 +248,14 @@ export function DispatchJobCard({
         </select>
       </div>
 
+      <div className="mt-2 rounded bg-kp-paper px-2 py-1.5 text-[11px] font-bold text-stone-700 ring-1 ring-kp-line">
+        Driver pay: {assignedDriver ? (
+          driverPaidAt ? <span className="text-emerald-700">Paid {currency(driverPayAmountLogged ?? 0)} on {displayDate(driverPaidAt)}</span> : <span className="text-amber-800">Needs paid</span>
+        ) : (
+          <span>No driver assigned</span>
+        )}
+      </div>
+
       <div className="mt-2 flex flex-wrap gap-1.5">
         {job.status === "Scheduled Drop-Off" ? (
           <button type="button" onClick={() => onStatusChange(job.id, "Delivered")} className="rounded bg-kp-green px-2 py-1 text-xs font-bold text-white">
@@ -258,6 +285,12 @@ export function DispatchJobCard({
           <Plus aria-hidden className="h-3.5 w-3.5" />
           Pay
         </button>
+        {assignedDriver && !driverPaidAt ? (
+          <button type="button" onClick={() => setPanel(panel === "driverPay" ? null : "driverPay")} className="flex items-center gap-1 rounded border border-kp-line bg-white px-2 py-1 text-xs font-bold text-stone-700">
+            <Plus aria-hidden className="h-3.5 w-3.5" />
+            Driver Pay
+          </button>
+        ) : null}
         <button type="button" onClick={() => onDelete(job.id)} className="rounded border border-kp-line bg-white px-2 py-1 text-xs font-bold text-red-700">
           <Trash2 aria-hidden className="h-3.5 w-3.5" />
         </button>
@@ -290,6 +323,17 @@ export function DispatchJobCard({
             <Field label="Note" value={paymentNote} onChange={(event) => setPaymentNote(event.target.value)} placeholder="Cash, card, check..." />
           </div>
           <button type="submit" className="mt-2 rounded bg-white px-3 py-2 text-xs font-bold text-stone-700 ring-1 ring-kp-line">Add Payment</button>
+        </form>
+      ) : null}
+
+      {panel === "driverPay" ? (
+        <form onSubmit={submitDriverPay} className="mt-2 rounded border border-kp-line bg-kp-paper p-2">
+          <p className="mb-2 text-xs font-bold uppercase tracking-normal text-stone-500">Mark Route Paid To Driver</p>
+          <div className="grid gap-2 sm:grid-cols-[90px_1fr]">
+            <Field label="Amount" type="number" min={0} step="0.01" value={driverPayAmount} onChange={(event) => setDriverPayAmount(event.target.value)} />
+            <Field label="Note" value={driverPayNotes} onChange={(event) => setDriverPayNotes(event.target.value)} placeholder={`${assignedDriver} route pay`} />
+          </div>
+          <button type="submit" className="mt-2 rounded bg-white px-3 py-2 text-xs font-bold text-stone-700 ring-1 ring-kp-line">Mark Driver Paid</button>
         </form>
       ) : null}
     </article>
