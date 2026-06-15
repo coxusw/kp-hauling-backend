@@ -9,7 +9,7 @@ import { Field, TextAreaField } from "@/components/form-fields";
 import { useOperations } from "@/lib/use-operations";
 import { JobCard } from "@/components/job-card";
 
-type LogTab = "jobs" | "expenses" | "projections";
+type LogTab = "jobs" | "expenses" | "cash" | "projections";
 
 function monthKey(date: string) {
   return date.slice(0, 7);
@@ -42,18 +42,29 @@ export default function LogPage() {
   });
 
   const finishedJobs = operations.jobs.filter((job) => job.status === "Picked Up / Completed");
+  const driverCashRows = operations.jobs.flatMap((job) =>
+    (job.payments ?? [])
+      .filter((payment) => payment.method === "Cash" && payment.driverName)
+      .map((payment) => ({ job, payment }))
+  );
   const months = Array.from(
-    new Set([...finishedJobs.map((job) => monthKey(job.actualPickupDate ?? job.expectedPickupDate)), ...operations.expenses.map((expense) => monthKey(expense.date))])
+    new Set([
+      ...finishedJobs.map((job) => monthKey(job.actualPickupDate ?? job.expectedPickupDate)),
+      ...operations.expenses.map((expense) => monthKey(expense.date)),
+      ...driverCashRows.map(({ payment }) => monthKey(payment.date))
+    ])
   ).sort();
   const filteredJobs = monthFilter === "all" ? finishedJobs : finishedJobs.filter((job) => monthKey(job.actualPickupDate ?? job.expectedPickupDate) === monthFilter);
   const filteredExpenses = monthFilter === "all" ? operations.expenses : operations.expenses.filter((expense) => monthKey(expense.date) === monthFilter);
+  const filteredDriverCash = monthFilter === "all" ? driverCashRows : driverCashRows.filter(({ payment }) => monthKey(payment.date) === monthFilter);
 
   const totals = {
     mileage: filteredJobs.reduce((total, job) => total + getJobMileageTotal(job), 0),
     billed: filteredJobs.reduce((total, job) => total + getJobTotal(job), 0),
     collected: filteredJobs.reduce((total, job) => total + getJobPaymentsTotal(job), 0),
     balance: filteredJobs.reduce((total, job) => total + getJobBalance(job), 0),
-    expenses: filteredExpenses.reduce((total, expense) => total + expense.amount, 0)
+    expenses: filteredExpenses.reduce((total, expense) => total + expense.amount, 0),
+    driverCash: filteredDriverCash.reduce((total, { payment }) => total + payment.amount, 0)
   };
   const netIncome = totals.collected - totals.expenses;
 
@@ -119,6 +130,21 @@ export default function LogPage() {
     ]);
   }
 
+  function exportDriverCash() {
+    downloadCsv("kp-hauling-driver-cash.csv", [
+      ["Date", "Driver", "Customer", "Dumpster", "Collected During", "Amount", "Note"],
+      ...filteredDriverCash.map(({ job, payment }) => [
+        payment.date,
+        payment.driverName,
+        job.customerName,
+        job.dumpsterNumber,
+        payment.collectedDuring === "delivery" ? "Delivery" : "Pickup",
+        payment.amount,
+        payment.note
+      ])
+    ]);
+  }
+
   return (
     <>
       <PageHeader title="Log" description="Track finished jobs, collected money, mileage, expenses, and monthly income trends." />
@@ -127,7 +153,7 @@ export default function LogPage() {
         <>
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <div className="flex rounded border border-kp-line bg-white p-1">
-              {(["jobs", "expenses", "projections"] as LogTab[]).map((item) => (
+              {(["jobs", "expenses", "cash", "projections"] as LogTab[]).map((item) => (
                 <button
                   key={item}
                   type="button"
@@ -153,10 +179,11 @@ export default function LogPage() {
             </label>
           </div>
 
-          <div className="mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+          <div className="mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
             <div className="rounded border border-kp-line bg-white p-3"><p className="text-xs font-bold text-stone-500">Mileage</p><p className="text-2xl font-bold">{totals.mileage.toFixed(1)}</p></div>
             <div className="rounded border border-kp-line bg-white p-3"><p className="text-xs font-bold text-stone-500">Billed</p><p className="text-2xl font-bold">{currency(totals.billed)}</p></div>
             <div className="rounded border border-kp-line bg-white p-3"><p className="text-xs font-bold text-stone-500">Collected</p><p className="text-2xl font-bold">{currency(totals.collected)}</p></div>
+            <div className="rounded border border-kp-line bg-white p-3"><p className="text-xs font-bold text-stone-500">Driver Cash</p><p className="text-2xl font-bold">{currency(totals.driverCash)}</p></div>
             <div className="rounded border border-kp-line bg-white p-3"><p className="text-xs font-bold text-stone-500">Balances Owed</p><p className="text-2xl font-bold">{currency(totals.balance)}</p></div>
             <div className="rounded border border-kp-line bg-white p-3"><p className="text-xs font-bold text-stone-500">Expenses</p><p className="text-2xl font-bold">{currency(totals.expenses)}</p></div>
             <div className="rounded border border-kp-line bg-white p-3"><p className="text-xs font-bold text-stone-500">Net Income</p><p className="text-2xl font-bold">{currency(netIncome)}</p></div>
@@ -237,6 +264,67 @@ export default function LogPage() {
                   </div>
                 )) : (
                   <div className="p-5 text-sm text-stone-600">No finished jobs for this filter.</div>
+                )}
+              </div>
+            </section>
+          ) : null}
+
+          {tab === "cash" ? (
+            <section className="rounded border border-kp-line bg-white shadow-panel">
+              <div className="flex items-center justify-between gap-3 border-b border-kp-line p-3">
+                <div>
+                  <h2 className="font-bold text-kp-ink">Driver Cash Collected</h2>
+                  <p className="text-xs text-stone-500">Cash marked by drivers during delivery or pickup.</p>
+                </div>
+                <button type="button" onClick={exportDriverCash} className="flex min-h-9 items-center gap-2 rounded border border-kp-line px-3 text-xs font-bold">
+                  <Download aria-hidden className="h-4 w-4" />
+                  Export CSV
+                </button>
+              </div>
+              <div className="divide-y divide-kp-line">
+                <div className="hidden grid-cols-[0.8fr_1fr_1.4fr_0.8fr_0.8fr_0.8fr_1.5fr] gap-3 bg-kp-paper p-3 text-xs font-bold uppercase tracking-normal text-stone-500 lg:grid">
+                  <span>Date</span>
+                  <span>Driver</span>
+                  <span>Customer</span>
+                  <span>Dumpster</span>
+                  <span>For</span>
+                  <span>Amount</span>
+                  <span>Note</span>
+                </div>
+                {filteredDriverCash.length > 0 ? filteredDriverCash.map(({ job, payment }) => (
+                  <div key={payment.id} className="grid gap-3 p-3 text-sm lg:grid-cols-[0.8fr_1fr_1.4fr_0.8fr_0.8fr_0.8fr_1.5fr] lg:items-center">
+                    <div>
+                      <p className="text-xs font-bold uppercase text-stone-500 lg:hidden">Date</p>
+                      <p>{displayDate(payment.date)}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold uppercase text-stone-500 lg:hidden">Driver</p>
+                      <p className="font-bold text-kp-ink">{payment.driverName}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold uppercase text-stone-500 lg:hidden">Customer</p>
+                      <p>{job.customerName}</p>
+                      <p className="text-xs text-stone-500">{job.jobAddress}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold uppercase text-stone-500 lg:hidden">Dumpster</p>
+                      <p>{job.dumpsterNumber ?? "Unassigned"}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold uppercase text-stone-500 lg:hidden">For</p>
+                      <p className="capitalize">{payment.collectedDuring ?? "driver"}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold uppercase text-stone-500 lg:hidden">Amount</p>
+                      <p className="font-bold text-emerald-700">{currency(payment.amount)}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold uppercase text-stone-500 lg:hidden">Note</p>
+                      <p className="text-stone-600">{payment.note || "No note"}</p>
+                    </div>
+                  </div>
+                )) : (
+                  <div className="p-5 text-sm text-stone-600">No driver cash has been logged for this filter.</div>
                 )}
               </div>
             </section>

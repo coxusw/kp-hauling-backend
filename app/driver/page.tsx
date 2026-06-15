@@ -13,13 +13,14 @@ import { useAuth } from "@/components/auth-provider";
 type DriverTaskProps = {
   job: RentalJob;
   type: "delivery" | "pickup";
-  onComplete: (jobId: string, type: "delivery" | "pickup", completedAt: string, notes: string) => void;
+  onComplete: (jobId: string, type: "delivery" | "pickup", completedAt: string, notes: string, cashCollected: number) => void;
 };
 
 function DriverTask({ job, type, onComplete }: DriverTaskProps) {
   const isDelivery = type === "delivery";
   const [completedAt, setCompletedAt] = useState(new Date().toTimeString().slice(0, 5));
   const [notes, setNotes] = useState("");
+  const [cashCollected, setCashCollected] = useState("");
   const dispatchNotes = isDelivery ? job.deliveryDispatchNotes : job.pickupDispatchNotes;
 
   function submit(event: FormEvent<HTMLFormElement>) {
@@ -27,7 +28,7 @@ function DriverTask({ job, type, onComplete }: DriverTaskProps) {
     if (!completedAt || !notes.trim()) {
       return;
     }
-    onComplete(job.id, type, completedAt, notes);
+    onComplete(job.id, type, completedAt, notes, Number(cashCollected) || 0);
   }
 
   return (
@@ -64,7 +65,7 @@ function DriverTask({ job, type, onComplete }: DriverTaskProps) {
       </div>
 
       <form onSubmit={submit} className="mt-4 rounded border border-kp-line bg-kp-paper p-3">
-        <div className="grid gap-3 sm:grid-cols-[130px_1fr]">
+        <div className="grid gap-3 sm:grid-cols-[130px_120px_1fr]">
           <label className="block text-sm font-bold text-stone-700">
             Actual Time
             <input
@@ -72,6 +73,18 @@ function DriverTask({ job, type, onComplete }: DriverTaskProps) {
               required
               value={completedAt}
               onChange={(event) => setCompletedAt(event.target.value)}
+              className="mt-1 min-h-10 w-full rounded border border-kp-line bg-white px-3 text-sm text-kp-ink"
+            />
+          </label>
+          <label className="block text-sm font-bold text-stone-700">
+            Cash Collected
+            <input
+              type="number"
+              min={0}
+              step="0.01"
+              value={cashCollected}
+              onChange={(event) => setCashCollected(event.target.value)}
+              placeholder="0"
               className="mt-1 min-h-10 w-full rounded border border-kp-line bg-white px-3 text-sm text-kp-ink"
             />
           </label>
@@ -142,12 +155,12 @@ export default function DriverPage() {
     pickups: operations.jobs.filter((job) => ["Delivered", "Pickup Needed", "Overdue"].includes(job.status) && !job.pickupDriverId)
   }), [operations.jobs]);
 
-  function completeTask(jobId: string, type: "delivery" | "pickup", completedAt: string, notes: string) {
+  function completeTask(jobId: string, type: "delivery" | "pickup", completedAt: string, notes: string, cashCollected: number) {
     // Future Supabase integration point: update the rental job and dumpster status in one transaction.
     if (type === "delivery") {
-      operations.completeDelivery(jobId, auth.currentUser?.name, completedAt, notes);
+      operations.completeDelivery(jobId, auth.currentUser?.name, completedAt, notes, cashCollected, auth.currentUser?.id);
     } else {
-      operations.completePickup(jobId, auth.currentUser?.name, completedAt, notes);
+      operations.completePickup(jobId, auth.currentUser?.name, completedAt, notes, cashCollected, auth.currentUser?.id);
     }
   }
 

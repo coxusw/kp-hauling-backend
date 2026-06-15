@@ -97,12 +97,13 @@ export function createCharge(label: string, amount: number): JobCharge {
   };
 }
 
-export function createPayment(amount: number, note: string): JobPayment {
+export function createPayment(amount: number, note: string, extra?: Partial<JobPayment>): JobPayment {
   return {
     id: makeId("payment"),
     amount,
     note: note.trim(),
-    date: new Date().toISOString().slice(0, 10)
+    date: new Date().toISOString().slice(0, 10),
+    ...extra
   };
 }
 

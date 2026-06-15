@@ -30,6 +30,10 @@ export type JobPayment = {
   amount: number;
   date: string;
   note: string;
+  method?: "Cash" | "Card" | "Check" | "Other";
+  driverId?: string;
+  driverName?: string;
+  collectedDuring?: "delivery" | "pickup" | "office";
 };
 
 export type Expense = {

@@ -246,7 +246,7 @@ export function useOperations() {
             job.id === jobId
               ? {
                   ...job,
-                  status: "Picked Up / Completed",
+                  status: "Picked Up / Completed" as const,
                   actualPickupDate: new Date().toISOString().slice(0, 10),
                   pickupDestinationAddress: destination,
                   pickupOneWayMiles
@@ -305,9 +305,26 @@ export function useOperations() {
           current.map((dumpster) => (dumpster.id === dumpsterId && dumpster.status === "Out of Service" ? { ...dumpster, status: "Available" } : dumpster))
         );
       },
-      completeDelivery(jobId: string, driverName?: string, completedAt?: string, notes?: string) {
+      completeDelivery(jobId: string, driverName?: string, completedAt?: string, notes?: string, cashCollected?: number, driverId?: string) {
         const deliveredJob = jobs.find((job) => job.id === jobId);
-        setJobs((current) => current.map((job) => (job.id === jobId ? { ...job, status: "Delivered", deliveryCompletedAt: completedAt, deliveryCompletionNotes: notes?.trim() } : job)));
+        setJobs((current) => current.map((job) => {
+          if (job.id !== jobId) {
+            return job;
+          }
+          const payments = cashCollected && cashCollected > 0
+            ? [
+                ...(job.payments ?? []),
+                createPayment(cashCollected, notes?.trim() || "Driver cash collected at drop-off", {
+                  method: "Cash",
+                  driverId,
+                  driverName,
+                  collectedDuring: "delivery"
+                })
+              ]
+            : job.payments;
+          const next = { ...job, status: "Delivered" as const, deliveryCompletedAt: completedAt, deliveryCompletionNotes: notes?.trim(), payments };
+          return { ...next, paymentStatus: getJobBalance(next) <= 0 ? "Paid" : next.paymentStatus };
+        }));
         setDumpsters((current) =>
           current.map((dumpster) =>
             dumpster.currentJobId === jobId
@@ -326,28 +343,42 @@ export function useOperations() {
               id: makeId("note"),
               createdAt: new Date().toISOString(),
               title: `${driverName || deliveredJob.deliveryDriverName || "Driver"} dropped off dumpster ${deliveredJob.dumpsterNumber ?? "Unassigned"}`,
-              detail: notes?.trim() || "No driver notes entered."
+              detail: `${notes?.trim() || "No driver notes entered."}${cashCollected && cashCollected > 0 ? ` Cash collected: $${cashCollected}.` : ""}`
             },
             ...current
           ]);
         }
       },
-      completePickup(jobId: string, driverName?: string, completedAt?: string, notes?: string) {
+      completePickup(jobId: string, driverName?: string, completedAt?: string, notes?: string, cashCollected?: number, driverId?: string) {
         const pickupJob = jobs.find((job) => job.id === jobId);
         const destination = pickupJob?.pickupDestinationAddress?.trim() || "KP yard";
         setJobs((current) =>
-          current.map((job) =>
-            job.id === jobId
-              ? {
+          current.map((job) => {
+            if (job.id !== jobId) {
+              return job;
+            }
+            const payments = cashCollected && cashCollected > 0
+              ? [
+                  ...(job.payments ?? []),
+                  createPayment(cashCollected, notes?.trim() || "Driver cash collected at pickup", {
+                    method: "Cash",
+                    driverId,
+                    driverName,
+                    collectedDuring: "pickup"
+                  })
+                ]
+              : job.payments;
+            const next = {
                   ...job,
-                  status: "Picked Up / Completed",
+                  status: "Picked Up / Completed" as const,
                   actualPickupDate: new Date().toISOString().slice(0, 10),
                   pickupDestinationAddress: destination,
                   pickupCompletedAt: completedAt,
-                  pickupCompletionNotes: notes?.trim()
-                }
-              : job
-          )
+                  pickupCompletionNotes: notes?.trim(),
+                  payments
+                };
+            return { ...next, paymentStatus: getJobBalance(next) <= 0 ? "Paid" : next.paymentStatus };
+          })
         );
         setDumpsters((current) =>
           current.map((dumpster) =>
@@ -369,7 +400,7 @@ export function useOperations() {
               id: makeId("note"),
               createdAt: new Date().toISOString(),
               title: `${driverName || pickupJob.pickupDriverName || "Driver"} picked up dumpster ${pickupJob.dumpsterNumber ?? "Unassigned"}`,
-              detail: notes?.trim() || "No driver notes entered."
+              detail: `${notes?.trim() || "No driver notes entered."}${cashCollected && cashCollected > 0 ? ` Cash collected: $${cashCollected}.` : ""}`
             },
             ...current
           ]);
