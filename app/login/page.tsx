@@ -8,8 +8,8 @@ import { Field } from "@/components/form-fields";
 
 export default function LoginPage() {
   const auth = useAuth();
-  const [email, setEmail] = useState("admin@kp.local");
-  const [password, setPassword] = useState("admin123");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -47,9 +47,6 @@ export default function LoginPage() {
           {isSubmitting ? "Logging in..." : "Login"}
         </button>
 
-        <p className="mt-4 rounded bg-kp-paper p-3 text-xs leading-5 text-stone-600">
-          Demo owner login: <span className="font-bold text-kp-ink">admin@kp.local</span> / <span className="font-bold text-kp-ink">admin123</span>.
-        </p>
       </form>
     </main>
   );
