@@ -407,14 +407,14 @@ export default function LogPage() {
                   </button>
                 </div>
                 <table className="w-full text-left text-sm">
-                  <thead className="bg-kp-paper text-xs uppercase text-stone-500"><tr><th className="p-3">Date</th><th className="p-3">Expense</th><th className="p-3">Amount</th><th className="p-3"></th></tr></thead>
+                  <thead className="hidden bg-kp-paper text-xs uppercase text-stone-500 sm:table-header-group"><tr><th className="p-3">Date</th><th className="p-3">Expense</th><th className="p-3">Amount</th><th className="p-3"></th></tr></thead>
                   <tbody>
                     {filteredExpenses.map((expense) => (
-                      <tr key={expense.id} className="border-t border-kp-line">
-                        <td className="p-3">{displayDate(expense.date)}</td>
-                        <td className="p-3 font-bold">{expense.label}</td>
-                        <td className="p-3">{currency(expense.amount)}</td>
-                        <td className="p-3 text-right"><button type="button" onClick={() => operations.deleteExpense(expense.id)}><Trash2 className="h-4 w-4 text-red-700" /></button></td>
+                      <tr key={expense.id} className="grid gap-2 border-t border-kp-line p-3 sm:table-row sm:p-0">
+                        <td className="sm:p-3"><span className="mr-2 text-xs font-bold uppercase text-stone-500 sm:hidden">Date</span>{displayDate(expense.date)}</td>
+                        <td className="font-bold sm:p-3"><span className="mr-2 text-xs font-bold uppercase text-stone-500 sm:hidden">Expense</span>{expense.label}</td>
+                        <td className="sm:p-3"><span className="mr-2 text-xs font-bold uppercase text-stone-500 sm:hidden">Amount</span>{currency(expense.amount)}</td>
+                        <td className="sm:p-3 sm:text-right"><button type="button" onClick={() => operations.deleteExpense(expense.id)} className="inline-flex min-h-9 items-center justify-center rounded border border-kp-line bg-white px-3 text-xs font-bold text-red-700"><Trash2 className="h-4 w-4" /><span className="ml-2 sm:hidden">Delete</span></button></td>
                       </tr>
                     ))}
                   </tbody>

@@ -10,9 +10,9 @@ export const metadata: Metadata = {
   description: "Local operations tracker for KP Hauling & Dumpster Services",
   manifest: "/hauling/manifest.webmanifest",
   icons: {
-    icon: "/icon.jpg",
-    shortcut: "/icon.jpg",
-    apple: "/icon.jpg"
+    icon: "/hauling/icon.jpg",
+    shortcut: "/hauling/icon.jpg",
+    apple: "/hauling/icon.jpg"
   }
 };
 
