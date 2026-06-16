@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect } from "react";
-import { CalendarPlus, History, LayoutDashboard, LogOut, PackagePlus, Route, Settings, Truck, UserCog, Users } from "lucide-react";
+import { useEffect, useState } from "react";
+import { CalendarPlus, ChevronDown, History, LayoutDashboard, LogOut, PackagePlus, Route, Settings, Truck, UserCog, Users } from "lucide-react";
 import { AuthProvider, useAuth } from "@/components/auth-provider";
 import { BrandLogo } from "@/components/brand-logo";
 import { canManageOperations, canManageUsers } from "@/lib/auth";
@@ -35,6 +35,8 @@ function ShellContent({ children }: { children: React.ReactNode }) {
   const isLogin = pathname === "/login";
   const canUseOperations = auth.currentUser ? canManageOperations(auth.currentUser.role) : false;
   const navItems = canUseOperations ? adminNavItems : driverNavItems;
+  const [menuOpen, setMenuOpen] = useState(false);
+  const currentNavItem = navItems.find((item) => item.href === pathname) ?? navItems[0];
 
   useEffect(() => {
     if (!auth.loaded) {
@@ -55,6 +57,10 @@ function ShellContent({ children }: { children: React.ReactNode }) {
       router.replace("/driver");
     }
   }, [auth.currentUser, auth.loaded, isLogin, pathname, router]);
+
+  useEffect(() => {
+    setMenuOpen(false);
+  }, [pathname]);
 
   if (!auth.loaded) {
     return (
@@ -94,7 +100,40 @@ function ShellContent({ children }: { children: React.ReactNode }) {
               </button>
             </div>
           </div>
-          <nav className="no-scrollbar -mx-3 flex gap-2 overflow-x-auto px-3 pb-1 sm:mx-0 sm:px-0">
+          <div className="relative sm:hidden">
+            <button
+              type="button"
+              onClick={() => setMenuOpen((current) => !current)}
+              className="flex min-h-11 w-full items-center justify-between rounded border border-kp-line bg-kp-paper px-3 text-sm font-bold text-kp-ink"
+              aria-expanded={menuOpen}
+            >
+              <span className="flex items-center gap-2">
+                {currentNavItem ? <currentNavItem.icon aria-hidden className="h-4 w-4 text-kp-green" /> : null}
+                {currentNavItem?.label ?? "Menu"}
+              </span>
+              <ChevronDown aria-hidden className={`h-4 w-4 transition ${menuOpen ? "rotate-180" : ""}`} />
+            </button>
+            {menuOpen ? (
+              <nav className="absolute left-0 right-0 top-full z-40 mt-2 overflow-hidden rounded border border-kp-line bg-white shadow-panel">
+                {navItems.map((item) => {
+                  const Icon = item.icon;
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      className={`flex min-h-11 items-center gap-2 border-b border-kp-line px-3 text-sm font-bold last:border-b-0 ${
+                        pathname === item.href ? "bg-kp-paper text-kp-green" : "text-kp-ink"
+                      }`}
+                    >
+                      <Icon aria-hidden className="h-4 w-4" />
+                      {item.label}
+                    </Link>
+                  );
+                })}
+              </nav>
+            ) : null}
+          </div>
+          <nav className="hidden gap-2 sm:flex sm:flex-wrap">
             {navItems.map((item) => {
               const Icon = item.icon;
               return (

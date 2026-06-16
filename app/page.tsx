@@ -49,7 +49,7 @@ export default function DashboardPage() {
       {!operations.loaded ? <LoadingPanel /> : null}
       {operations.loaded ? (
       <>
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-4 gap-2 sm:gap-4">
         {metrics.map((metric) => (
           <MetricCard key={metric.label} {...metric} />
         ))}
