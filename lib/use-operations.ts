@@ -21,6 +21,8 @@ import {
   type NewJobInput
 } from "@/lib/local-store";
 import { getJobBalance } from "@/lib/data";
+import { supabase } from "@/lib/supabase/client";
+import { compactRow, dumpsterToRow, jobToRow, loadSupabaseOperations } from "@/lib/supabase/operations-db";
 
 function readStored<T>(key: string, fallback: T): T {
   if (typeof window === "undefined") {
@@ -58,6 +60,23 @@ function normalizeJobs(jobs: RentalJob[]) {
   });
 }
 
+function removeUndefined<T extends Record<string, unknown>>(value: T) {
+  return Object.fromEntries(Object.entries(value).filter(([, entry]) => entry !== undefined)) as Partial<T>;
+}
+
+async function notify(title: string, detail: string, audience: "admin" | "driver" = "admin", userId?: string) {
+  if (!supabase) {
+    return;
+  }
+
+  const { data } = await supabase.auth.getSession();
+  await fetch("/hauling/api/push/notify", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${data.session?.access_token ?? ""}` },
+    body: JSON.stringify({ title, detail, audience, userId, type: audience === "driver" ? "dispatch" : "driver_updates" })
+  }).catch(() => undefined);
+}
+
 export function useOperations() {
   const [dumpsters, setDumpsters] = useState<Dumpster[]>(EMPTY_DUMPSTERS);
   const [jobs, setJobs] = useState<RentalJob[]>(EMPTY_JOBS);
@@ -65,8 +84,27 @@ export function useOperations() {
   const [driverCashHandoffs, setDriverCashHandoffs] = useState<DriverCashHandoff[]>([]);
   const [notifications, setNotifications] = useState<OwnerNotification[]>([]);
   const [loaded, setLoaded] = useState(false);
+  const useDb = Boolean(supabase);
+
+  async function reloadFromSupabase() {
+    if (!supabase) {
+      return;
+    }
+
+    const snapshot = await loadSupabaseOperations();
+    setDumpsters(normalizeDumpsters(snapshot.dumpsters));
+    setJobs(normalizeJobs(snapshot.jobs));
+    setExpenses(snapshot.expenses);
+    setDriverCashHandoffs(snapshot.driverCashHandoffs);
+    setNotifications(snapshot.notifications);
+  }
 
   useEffect(() => {
+    if (supabase) {
+      reloadFromSupabase().finally(() => setLoaded(true));
+      return;
+    }
+
     setDumpsters(normalizeDumpsters(readStored(DUMPSTER_STORAGE_KEY, EMPTY_DUMPSTERS)));
     setJobs(normalizeJobs(readStored(JOB_STORAGE_KEY, EMPTY_JOBS)));
     setExpenses(readStored(EXPENSE_STORAGE_KEY, []));
@@ -76,34 +114,34 @@ export function useOperations() {
   }, []);
 
   useEffect(() => {
-    if (loaded) {
+    if (loaded && !useDb) {
       window.localStorage.setItem(DUMPSTER_STORAGE_KEY, JSON.stringify(dumpsters));
     }
-  }, [dumpsters, loaded]);
+  }, [dumpsters, loaded, useDb]);
 
   useEffect(() => {
-    if (loaded) {
+    if (loaded && !useDb) {
       window.localStorage.setItem(JOB_STORAGE_KEY, JSON.stringify(jobs));
     }
-  }, [jobs, loaded]);
+  }, [jobs, loaded, useDb]);
 
   useEffect(() => {
-    if (loaded) {
+    if (loaded && !useDb) {
       window.localStorage.setItem(EXPENSE_STORAGE_KEY, JSON.stringify(expenses));
     }
-  }, [expenses, loaded]);
+  }, [expenses, loaded, useDb]);
 
   useEffect(() => {
-    if (loaded) {
+    if (loaded && !useDb) {
       window.localStorage.setItem(DRIVER_CASH_HANDOFF_STORAGE_KEY, JSON.stringify(driverCashHandoffs));
     }
-  }, [driverCashHandoffs, loaded]);
+  }, [driverCashHandoffs, loaded, useDb]);
 
   useEffect(() => {
-    if (loaded) {
+    if (loaded && !useDb) {
       window.localStorage.setItem("kp-hauling-owner-notifications", JSON.stringify(notifications));
     }
-  }, [loaded, notifications]);
+  }, [loaded, notifications, useDb]);
 
   return useMemo(
     () => ({
@@ -113,10 +151,23 @@ export function useOperations() {
       driverCashHandoffs,
       notifications,
       loaded,
-      addDumpster(input: NewDumpsterInput) {
-        setDumpsters((current) => [...current, createDumpster(input)]);
+      async addDumpster(input: NewDumpsterInput) {
+        const newDumpster = createDumpster(input);
+        if (supabase) {
+          const { data, error } = await supabase.from("kp_hauling_dumpsters").insert(compactRow(dumpsterToRow(newDumpster))).select("*").single();
+          if (!error && data) {
+            await reloadFromSupabase();
+            return;
+          }
+        }
+        setDumpsters((current) => [...current, newDumpster]);
       },
-      updateDumpster(dumpsterId: string, updates: Partial<Dumpster>) {
+      async updateDumpster(dumpsterId: string, updates: Partial<Dumpster>) {
+        if (supabase) {
+          await supabase.from("kp_hauling_dumpsters").update(compactRow(dumpsterToRow(updates))).eq("id", dumpsterId);
+          await reloadFromSupabase();
+          return;
+        }
         setDumpsters((current) =>
           current.map((dumpster) =>
             dumpster.id === dumpsterId
@@ -132,8 +183,20 @@ export function useOperations() {
           )
         );
       },
-      addJob(input: NewJobInput) {
+      async addJob(input: NewJobInput) {
         const newJob = createJob(input, dumpsters, jobs);
+        if (supabase) {
+          const { data, error } = await supabase.from("kp_hauling_jobs").insert(compactRow(jobToRow(newJob))).select("*").single();
+          if (!error && data && newJob.dumpsterId) {
+            await supabase.from("kp_hauling_dumpsters").update({
+              status: "Scheduled Drop-Off",
+              current_customer: newJob.customerName,
+              current_job_id: data.id
+            }).eq("id", newJob.dumpsterId);
+          }
+          await reloadFromSupabase();
+          return;
+        }
         setJobs((current) => [...current, newJob]);
         if (newJob.dumpsterId) {
           setDumpsters((current) =>
@@ -150,8 +213,20 @@ export function useOperations() {
           );
         }
       },
-      deleteJob(jobId: string) {
+      async deleteJob(jobId: string) {
         const jobToDelete = jobs.find((job) => job.id === jobId);
+        if (supabase) {
+          await supabase.from("kp_hauling_jobs").delete().eq("id", jobId);
+          if (jobToDelete?.dumpsterId) {
+            await supabase.from("kp_hauling_dumpsters").update({
+              status: "Available",
+              current_customer: null,
+              current_job_id: null
+            }).eq("id", jobToDelete.dumpsterId);
+          }
+          await reloadFromSupabase();
+          return;
+        }
         setJobs((current) => current.filter((job) => job.id !== jobId));
         if (jobToDelete?.dumpsterId) {
           const hasOtherActiveJob = jobs.some(
@@ -173,10 +248,41 @@ export function useOperations() {
           }
         }
       },
-      updateJobPaymentStatus(jobId: string, paymentStatus: PaymentStatus) {
+      async updateJobPaymentStatus(jobId: string, paymentStatus: PaymentStatus) {
+        if (supabase) {
+          await supabase.from("kp_hauling_jobs").update({ payment_status: paymentStatus }).eq("id", jobId);
+          await reloadFromSupabase();
+          return;
+        }
         setJobs((current) => current.map((job) => (job.id === jobId ? { ...job, paymentStatus } : job)));
       },
-      updateJob(jobId: string, updates: Partial<RentalJob>) {
+      async updateJob(jobId: string, updates: Partial<RentalJob>) {
+        if (supabase) {
+          const existing = jobs.find((job) => job.id === jobId);
+          const next = existing ? { ...existing, ...updates } : updates;
+          await supabase.from("kp_hauling_jobs").update(compactRow(jobToRow({
+            ...updates,
+            paymentStatus: existing && getJobBalance(next as RentalJob) <= 0 ? "Paid" : updates.paymentStatus
+          }))).eq("id", jobId);
+          if (updates.deliveryDriverId && updates.deliveryDriverId !== existing?.deliveryDriverId) {
+            await notify(
+              `Job #${existing?.jobNumber ?? ""} delivery dispatched`,
+              `${existing?.customerName ?? "A job"} is assigned for drop-off.`,
+              "driver",
+              updates.deliveryDriverId
+            );
+          }
+          if (updates.pickupDriverId && updates.pickupDriverId !== existing?.pickupDriverId) {
+            await notify(
+              `Job #${existing?.jobNumber ?? ""} pickup dispatched`,
+              `${existing?.customerName ?? "A job"} is assigned for pickup.`,
+              "driver",
+              updates.pickupDriverId
+            );
+          }
+          await reloadFromSupabase();
+          return;
+        }
         setJobs((current) =>
           current.map((job) => {
             if (job.id !== jobId) {
@@ -187,7 +293,13 @@ export function useOperations() {
           })
         );
       },
-      addOwnerNotification(title: string, detail: string) {
+      async addOwnerNotification(title: string, detail: string) {
+        if (supabase) {
+          await supabase.from("kp_hauling_owner_notifications").insert({ title, detail });
+          await notify(title, detail, "admin");
+          await reloadFromSupabase();
+          return;
+        }
         setNotifications((current) => [
           {
             id: makeId("note"),
@@ -198,65 +310,94 @@ export function useOperations() {
           ...current
         ]);
       },
-      clearOwnerNotification(notificationId: string) {
+      async clearOwnerNotification(notificationId: string) {
+        if (supabase) {
+          await supabase.from("kp_hauling_owner_notifications").delete().eq("id", notificationId);
+          await reloadFromSupabase();
+          return;
+        }
         setNotifications((current) => current.filter((notification) => notification.id !== notificationId));
       },
-      updateJobStatus(jobId: string, status: RentalJob["status"]) {
-        setJobs((current) =>
-          current.map((job) =>
-            job.id === jobId
-              ? {
-                  ...job,
-                  status,
-                  actualPickupDate: status === "Picked Up / Completed" ? new Date().toISOString().slice(0, 10) : job.actualPickupDate
-                }
-              : job
-          )
-        );
+      async updateJobStatus(jobId: string, status: RentalJob["status"]) {
         const targetJob = jobs.find((job) => job.id === jobId);
-        if (targetJob?.dumpsterId) {
+        const jobUpdate = {
+          status,
+          actualPickupDate: status === "Picked Up / Completed" ? new Date().toISOString().slice(0, 10) : targetJob?.actualPickupDate
+        };
+        const dumpsterUpdate = (() => {
+          if (!targetJob?.dumpsterId) return undefined;
+          if (status === "Picked Up / Completed") {
+            return {
+              status: "Available",
+              currentCustomer: undefined,
+              currentJobId: undefined,
+              currentLocation: targetJob.pickupDestinationAddress || "KP yard",
+              currentAddress: targetJob.pickupDestinationAddress ?? ""
+            } satisfies Partial<Dumpster>;
+          }
+          return {
+            status,
+            currentCustomer: targetJob.customerName,
+            currentJobId: targetJob.id,
+            currentLocation: status === "Delivered" || status === "Pickup Needed" || status === "Overdue" ? targetJob.jobAddress : undefined,
+            currentAddress: status === "Delivered" || status === "Pickup Needed" || status === "Overdue" ? targetJob.jobAddress : undefined
+          } satisfies Partial<Dumpster>;
+        })();
+        if (supabase) {
+          await supabase.from("kp_hauling_jobs").update(compactRow(jobToRow(jobUpdate))).eq("id", jobId);
+          if (targetJob?.dumpsterId && dumpsterUpdate) {
+            await supabase.from("kp_hauling_dumpsters").update(compactRow(dumpsterToRow(dumpsterUpdate))).eq("id", targetJob.dumpsterId);
+          }
+          await reloadFromSupabase();
+          return;
+        }
+        setJobs((current) => current.map((job) => (job.id === jobId ? { ...job, ...jobUpdate } : job)));
+        if (targetJob?.dumpsterId && dumpsterUpdate) {
           setDumpsters((current) =>
-            current.map((dumpster) => {
-              if (dumpster.id !== targetJob.dumpsterId) {
-                return dumpster;
-              }
-              if (status === "Picked Up / Completed") {
-                return {
-                  ...dumpster,
-                  status: "Available",
-                  currentCustomer: undefined,
-                  currentJobId: undefined,
-                  currentLocation: targetJob.pickupDestinationAddress || "KP yard",
-                  currentAddress: targetJob.pickupDestinationAddress ?? ""
-                };
-              }
-              return {
-                ...dumpster,
-                status,
-                currentCustomer: targetJob.customerName,
-                currentJobId: targetJob.id,
-                currentLocation: status === "Delivered" || status === "Pickup Needed" || status === "Overdue" ? targetJob.jobAddress : dumpster.currentLocation,
-                currentAddress: status === "Delivered" || status === "Pickup Needed" || status === "Overdue" ? targetJob.jobAddress : dumpster.currentAddress
-              };
-            })
+            current.map((dumpster) => (dumpster.id === targetJob.dumpsterId ? { ...dumpster, ...removeUndefined(dumpsterUpdate) } : dumpster))
           );
         }
       },
-      addJobCharge(jobId: string, label: string, amount: number) {
+      async addJobCharge(jobId: string, label: string, amount: number) {
+        const charge = createCharge(label, amount);
+        if (supabase) {
+          await supabase.from("kp_hauling_job_charges").insert({ job_id: jobId, label: charge.label, amount, charge_date: charge.date });
+          await supabase.from("kp_hauling_jobs").update({ payment_status: "Unpaid" }).eq("id", jobId);
+          await reloadFromSupabase();
+          return;
+        }
         setJobs((current) =>
           current.map((job) =>
             job.id === jobId
               ? {
                   ...job,
-                  charges: [...(job.charges ?? []), createCharge(label, amount)],
+                  charges: [...(job.charges ?? []), charge],
                   paymentStatus: "Unpaid"
                 }
               : job
           )
         );
       },
-      completePickupWithDestination(jobId: string, pickupDestinationAddress: string, pickupOneWayMiles?: number, pickupReturnMiles?: number) {
+      async completePickupWithDestination(jobId: string, pickupDestinationAddress: string, pickupOneWayMiles?: number, pickupReturnMiles?: number) {
         const destination = pickupDestinationAddress.trim() || "KP yard";
+        if (supabase) {
+          await supabase.from("kp_hauling_jobs").update({
+            status: "Picked Up / Completed",
+            actual_pickup_date: new Date().toISOString().slice(0, 10),
+            pickup_destination_address: destination,
+            pickup_one_way_miles: pickupOneWayMiles ?? null,
+            pickup_return_miles: pickupReturnMiles ?? null
+          }).eq("id", jobId);
+          await supabase.from("kp_hauling_dumpsters").update({
+            status: "Available",
+            current_customer: null,
+            current_job_id: null,
+            current_location: destination,
+            current_address: destination
+          }).eq("current_job_id", jobId);
+          await reloadFromSupabase();
+          return;
+        }
         setJobs((current) =>
           current.map((job) =>
             job.id === jobId
@@ -286,21 +427,49 @@ export function useOperations() {
           )
         );
       },
-      addJobPayment(jobId: string, amount: number, note: string) {
+      async addJobPayment(jobId: string, amount: number, note: string) {
+        const payment = createPayment(amount, note);
+        if (supabase) {
+          await supabase.from("kp_hauling_job_payments").insert({
+            job_id: jobId,
+            amount,
+            payment_date: payment.date,
+            note: payment.note,
+            method: "Other"
+          });
+          const targetJob = jobs.find((job) => job.id === jobId);
+          if (targetJob) {
+            const next = { ...targetJob, payments: [...(targetJob.payments ?? []), payment] };
+            await supabase.from("kp_hauling_jobs").update({ payment_status: getJobBalance(next) <= 0 ? "Paid" : "Deposit Paid" }).eq("id", jobId);
+          }
+          await reloadFromSupabase();
+          return;
+        }
         setJobs((current) =>
           current.map((job) => {
             if (job.id !== jobId) {
               return job;
             }
-            const next = { ...job, payments: [...(job.payments ?? []), createPayment(amount, note)] };
+            const next = { ...job, payments: [...(job.payments ?? []), payment] };
             return { ...next, paymentStatus: getJobBalance(next) <= 0 ? "Paid" : "Deposit Paid" };
           })
         );
       },
-      addExpense(input: NewExpenseInput) {
-        setExpenses((current) => [...current, createExpense(input)]);
+      async addExpense(input: NewExpenseInput) {
+        const expense = createExpense(input);
+        if (supabase) {
+          await supabase.from("kp_hauling_expenses").insert({
+            expense_date: expense.date,
+            label: expense.label,
+            amount: expense.amount,
+            notes: expense.notes
+          });
+          await reloadFromSupabase();
+          return;
+        }
+        setExpenses((current) => [...current, expense]);
       },
-      markDriverRoutePaid(jobId: string, routeType: "delivery" | "pickup", amount: number, notes: string) {
+      async markDriverRoutePaid(jobId: string, routeType: "delivery" | "pickup", amount: number, notes: string) {
         const targetJob = jobs.find((job) => job.id === jobId);
         if (!targetJob) {
           return;
@@ -311,62 +480,87 @@ export function useOperations() {
         }
 
         const paidAt = new Date().toISOString().slice(0, 10);
-        setJobs((current) =>
-          current.map((job) => {
-            if (job.id !== jobId) {
-              return job;
-            }
-            return routeType === "delivery"
-              ? {
-                  ...job,
-                  deliveryDriverPaidAt: paidAt,
-                  deliveryDriverPayAmount: amount,
-                  deliveryDriverPayNotes: notes.trim()
-                }
-              : {
-                  ...job,
-                  pickupDriverPaidAt: paidAt,
-                  pickupDriverPayAmount: amount,
-                  pickupDriverPayNotes: notes.trim()
-                };
-          })
-        );
-        setExpenses((current) => [
-          ...current,
-          createExpense({
-            date: paidAt,
-            label: `Driver route pay - Job #${targetJob.jobNumber}`,
+        const updates = routeType === "delivery"
+          ? { deliveryDriverPaidAt: paidAt, deliveryDriverPayAmount: amount, deliveryDriverPayNotes: notes.trim() }
+          : { pickupDriverPaidAt: paidAt, pickupDriverPayAmount: amount, pickupDriverPayNotes: notes.trim() };
+        const expenseInput = {
+          date: paidAt,
+          label: `Driver route pay - Job #${targetJob.jobNumber}`,
+          amount,
+          notes: `${routeType === "delivery" ? "Drop-off" : "Pickup"} route paid to ${driverName} for ${targetJob.customerName}${notes.trim() ? `: ${notes.trim()}` : ""}`
+        };
+        if (supabase) {
+          await supabase.from("kp_hauling_jobs").update(compactRow(jobToRow(updates))).eq("id", jobId);
+          await supabase.from("kp_hauling_expenses").insert({
+            expense_date: expenseInput.date,
+            label: expenseInput.label,
             amount,
-            notes: `${routeType === "delivery" ? "Drop-off" : "Pickup"} route paid to ${driverName} for ${targetJob.customerName}${notes.trim() ? `: ${notes.trim()}` : ""}`
-          })
-        ]);
+            notes: expenseInput.notes
+          });
+          await reloadFromSupabase();
+          return;
+        }
+        setJobs((current) => current.map((job) => (job.id === jobId ? { ...job, ...updates } : job)));
+        setExpenses((current) => [...current, createExpense(expenseInput)]);
       },
-      addDriverCashHandoff(driverId: string, driverName: string, amount: number, notes: string) {
-        setDriverCashHandoffs((current) => [...current, createDriverCashHandoff(driverId, driverName, amount, notes)]);
+      async addDriverCashHandoff(driverId: string, driverName: string, amount: number, notes: string) {
+        const handoff = createDriverCashHandoff(driverId, driverName, amount, notes);
+        if (supabase) {
+          await supabase.from("kp_hauling_driver_cash_handoffs").insert({
+            handoff_date: handoff.date,
+            driver_id: driverId,
+            driver_name: driverName,
+            amount,
+            notes: handoff.notes
+          });
+          await reloadFromSupabase();
+          return;
+        }
+        setDriverCashHandoffs((current) => [...current, handoff]);
       },
-      deleteExpense(expenseId: string) {
+      async deleteExpense(expenseId: string) {
+        if (supabase) {
+          await supabase.from("kp_hauling_expenses").delete().eq("id", expenseId);
+          await reloadFromSupabase();
+          return;
+        }
         setExpenses((current) => current.filter((expense) => expense.id !== expenseId));
       },
-      deleteDumpster(dumpsterId: string) {
+      async deleteDumpster(dumpsterId: string) {
         const hasActiveJob = jobs.some((job) => job.dumpsterId === dumpsterId && job.status !== "Picked Up / Completed");
         if (hasActiveJob) {
           return false;
         }
 
+        if (supabase) {
+          await supabase.from("kp_hauling_dumpsters").delete().eq("id", dumpsterId);
+          await reloadFromSupabase();
+          return true;
+        }
         setDumpsters((current) => current.filter((dumpster) => dumpster.id !== dumpsterId));
         return true;
       },
-      takeDumpsterOutOfService(dumpsterId: string) {
+      async takeDumpsterOutOfService(dumpsterId: string) {
+        if (supabase) {
+          await supabase.from("kp_hauling_dumpsters").update({ status: "Out of Service" }).eq("id", dumpsterId).eq("status", "Available");
+          await reloadFromSupabase();
+          return;
+        }
         setDumpsters((current) =>
           current.map((dumpster) => (dumpster.id === dumpsterId && dumpster.status === "Available" ? { ...dumpster, status: "Out of Service" } : dumpster))
         );
       },
-      putDumpsterInService(dumpsterId: string) {
+      async putDumpsterInService(dumpsterId: string) {
+        if (supabase) {
+          await supabase.from("kp_hauling_dumpsters").update({ status: "Available" }).eq("id", dumpsterId).eq("status", "Out of Service");
+          await reloadFromSupabase();
+          return;
+        }
         setDumpsters((current) =>
           current.map((dumpster) => (dumpster.id === dumpsterId && dumpster.status === "Out of Service" ? { ...dumpster, status: "Available" } : dumpster))
         );
       },
-      completeDelivery(
+      async completeDelivery(
         jobId: string,
         driverName?: string,
         completedAt?: string,
@@ -378,21 +572,57 @@ export function useOperations() {
         returnMiles?: number
       ) {
         const deliveredJob = jobs.find((job) => job.id === jobId);
+        const payment = cashCollected && cashCollected > 0
+          ? createPayment(cashCollected, notes?.trim() || "Driver cash collected at drop-off", {
+              method: "Cash",
+              driverId,
+              driverName,
+              collectedDuring: "delivery"
+            })
+          : undefined;
+        if (supabase) {
+          const targetJob = jobs.find((job) => job.id === jobId);
+          const next = targetJob && payment ? { ...targetJob, payments: [...(targetJob.payments ?? []), payment] } : targetJob;
+          await supabase.from("kp_hauling_jobs").update({
+            status: "Delivered",
+            delivery_truck_type: truckType ?? null,
+            delivery_completed_at: completedAt ?? null,
+            delivery_completion_notes: notes?.trim() ?? null,
+            estimated_one_way_miles: truckType === "Company Truck" ? outboundMiles ?? null : targetJob?.estimatedOneWayMiles ?? null,
+            delivery_return_miles: truckType === "Company Truck" ? returnMiles ?? null : targetJob?.deliveryReturnMiles ?? null,
+            payment_status: next && getJobBalance(next) <= 0 ? "Paid" : payment ? "Deposit Paid" : targetJob?.paymentStatus
+          }).eq("id", jobId);
+          await supabase.from("kp_hauling_dumpsters").update({
+            status: "Delivered",
+            current_location: deliveredJob?.jobAddress,
+            current_address: deliveredJob?.jobAddress
+          }).eq("current_job_id", jobId);
+          if (payment) {
+            await supabase.from("kp_hauling_job_payments").insert({
+              job_id: jobId,
+              amount: payment.amount,
+              payment_date: payment.date,
+              note: payment.note,
+              method: payment.method,
+              driver_id: driverId ?? null,
+              driver_name: driverName ?? null,
+              collected_during: "delivery"
+            });
+          }
+          if (deliveredJob) {
+            const title = `${driverName || deliveredJob.deliveryDriverName || "Driver"} dropped off dumpster ${deliveredJob.dumpsterNumber ?? "Unassigned"}`;
+            const detail = `${notes?.trim() || "No driver notes entered."}${truckType ? ` ${truckType}.` : ""}${truckType === "Company Truck" && outboundMiles !== undefined && returnMiles !== undefined ? ` Business miles: ${(outboundMiles + returnMiles).toFixed(1)}.` : ""}${cashCollected && cashCollected > 0 ? ` Cash collected: $${cashCollected}.` : ""}`;
+            await supabase.from("kp_hauling_owner_notifications").insert({ title, detail });
+            await notify(title, detail, "admin");
+          }
+          await reloadFromSupabase();
+          return;
+        }
         setJobs((current) => current.map((job) => {
           if (job.id !== jobId) {
             return job;
           }
-          const payments = cashCollected && cashCollected > 0
-            ? [
-                ...(job.payments ?? []),
-                createPayment(cashCollected, notes?.trim() || "Driver cash collected at drop-off", {
-                  method: "Cash",
-                  driverId,
-                  driverName,
-                  collectedDuring: "delivery"
-                })
-              ]
-            : job.payments;
+          const payments = payment ? [...(job.payments ?? []), payment] : job.payments;
           const next = {
             ...job,
             status: "Delivered" as const,
@@ -420,19 +650,8 @@ export function useOperations() {
               : dumpster
           )
         );
-        if (deliveredJob) {
-          setNotifications((current) => [
-            {
-              id: makeId("note"),
-              createdAt: new Date().toISOString(),
-              title: `${driverName || deliveredJob.deliveryDriverName || "Driver"} dropped off dumpster ${deliveredJob.dumpsterNumber ?? "Unassigned"}`,
-              detail: `${notes?.trim() || "No driver notes entered."}${truckType ? ` ${truckType}.` : ""}${truckType === "Company Truck" && outboundMiles !== undefined && returnMiles !== undefined ? ` Business miles: ${(outboundMiles + returnMiles).toFixed(1)}.` : ""}${cashCollected && cashCollected > 0 ? ` Cash collected: $${cashCollected}.` : ""}`
-            },
-            ...current
-          ]);
-        }
       },
-      completePickup(
+      async completePickup(
         jobId: string,
         driverName?: string,
         completedAt?: string,
@@ -445,22 +664,61 @@ export function useOperations() {
       ) {
         const pickupJob = jobs.find((job) => job.id === jobId);
         const destination = pickupJob?.pickupDestinationAddress?.trim() || "KP yard";
+        const payment = cashCollected && cashCollected > 0
+          ? createPayment(cashCollected, notes?.trim() || "Driver cash collected at pickup", {
+              method: "Cash",
+              driverId,
+              driverName,
+              collectedDuring: "pickup"
+            })
+          : undefined;
+        if (supabase) {
+          const next = pickupJob && payment ? { ...pickupJob, payments: [...(pickupJob.payments ?? []), payment] } : pickupJob;
+          await supabase.from("kp_hauling_jobs").update({
+            status: "Picked Up / Completed",
+            actual_pickup_date: new Date().toISOString().slice(0, 10),
+            pickup_destination_address: destination,
+            pickup_truck_type: truckType ?? null,
+            pickup_completed_at: completedAt ?? null,
+            pickup_completion_notes: notes?.trim() ?? null,
+            pickup_one_way_miles: truckType === "Company Truck" ? outboundMiles ?? null : pickupJob?.pickupOneWayMiles ?? null,
+            pickup_return_miles: truckType === "Company Truck" ? returnMiles ?? null : pickupJob?.pickupReturnMiles ?? null,
+            payment_status: next && getJobBalance(next) <= 0 ? "Paid" : payment ? "Deposit Paid" : pickupJob?.paymentStatus
+          }).eq("id", jobId);
+          await supabase.from("kp_hauling_dumpsters").update({
+            status: "Available",
+            current_customer: null,
+            current_job_id: null,
+            current_location: destination,
+            current_address: destination
+          }).eq("current_job_id", jobId);
+          if (payment) {
+            await supabase.from("kp_hauling_job_payments").insert({
+              job_id: jobId,
+              amount: payment.amount,
+              payment_date: payment.date,
+              note: payment.note,
+              method: payment.method,
+              driver_id: driverId ?? null,
+              driver_name: driverName ?? null,
+              collected_during: "pickup"
+            });
+          }
+          if (pickupJob) {
+            const title = `${driverName || pickupJob.pickupDriverName || "Driver"} picked up dumpster ${pickupJob.dumpsterNumber ?? "Unassigned"}`;
+            const detail = `${notes?.trim() || "No driver notes entered."}${truckType ? ` ${truckType}.` : ""}${truckType === "Company Truck" && outboundMiles !== undefined && returnMiles !== undefined ? ` Business miles: ${(outboundMiles + returnMiles).toFixed(1)}.` : ""}${cashCollected && cashCollected > 0 ? ` Cash collected: $${cashCollected}.` : ""}`;
+            await supabase.from("kp_hauling_owner_notifications").insert({ title, detail });
+            await notify(title, detail, "admin");
+          }
+          await reloadFromSupabase();
+          return;
+        }
         setJobs((current) =>
           current.map((job) => {
             if (job.id !== jobId) {
               return job;
             }
-            const payments = cashCollected && cashCollected > 0
-              ? [
-                  ...(job.payments ?? []),
-                  createPayment(cashCollected, notes?.trim() || "Driver cash collected at pickup", {
-                    method: "Cash",
-                    driverId,
-                    driverName,
-                    collectedDuring: "pickup"
-                  })
-                ]
-              : job.payments;
+            const payments = payment ? [...(job.payments ?? []), payment] : job.payments;
             const next = {
                   ...job,
                   status: "Picked Up / Completed" as const,
@@ -493,19 +751,11 @@ export function useOperations() {
               : dumpster
           )
         );
-        if (pickupJob) {
-          setNotifications((current) => [
-            {
-              id: makeId("note"),
-              createdAt: new Date().toISOString(),
-              title: `${driverName || pickupJob.pickupDriverName || "Driver"} picked up dumpster ${pickupJob.dumpsterNumber ?? "Unassigned"}`,
-              detail: `${notes?.trim() || "No driver notes entered."}${truckType ? ` ${truckType}.` : ""}${truckType === "Company Truck" && outboundMiles !== undefined && returnMiles !== undefined ? ` Business miles: ${(outboundMiles + returnMiles).toFixed(1)}.` : ""}${cashCollected && cashCollected > 0 ? ` Cash collected: $${cashCollected}.` : ""}`
-            },
-            ...current
-          ]);
-        }
       },
-      clearAll() {
+      async clearAll() {
+        if (supabase) {
+          return;
+        }
         setDumpsters([]);
         setJobs([]);
         setExpenses([]);

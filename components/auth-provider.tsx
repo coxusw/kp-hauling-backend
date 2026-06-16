@@ -230,6 +230,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             availability_status: "Available",
             availability_updated_at: new Date().toISOString()
           }).eq("id", userId);
+          const { data: sessionData } = await supabase.auth.getSession();
+          await fetch("/hauling/api/push/notify", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${sessionData.session?.access_token ?? ""}`
+            },
+            body: JSON.stringify({
+              title: "Driver availability updated",
+              detail: `${currentUser?.name ?? "A driver"} added availability for ${input.date}.`,
+              audience: "admin",
+              type: "availability"
+            })
+          }).catch(() => undefined);
           await reloadSupabaseUsers(currentUserId);
           return { ok: true };
         }

@@ -202,6 +202,21 @@ create table if not exists public.kp_hauling_owner_notifications (
   created_at timestamptz not null default now()
 );
 
+create table if not exists public.kp_hauling_push_subscriptions (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references public.kp_hauling_profiles(id) on delete cascade,
+  endpoint text not null unique,
+  p256dh text not null,
+  auth text not null,
+  user_agent text not null default '',
+  notify_dispatch boolean not null default true,
+  notify_pickup_due boolean not null default true,
+  notify_driver_updates boolean not null default true,
+  notify_availability boolean not null default true,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
 create or replace function public.kp_hauling_is_admin()
 returns boolean
 language sql
@@ -226,6 +241,7 @@ alter table public.kp_hauling_job_payments enable row level security;
 alter table public.kp_hauling_expenses enable row level security;
 alter table public.kp_hauling_driver_cash_handoffs enable row level security;
 alter table public.kp_hauling_owner_notifications enable row level security;
+alter table public.kp_hauling_push_subscriptions enable row level security;
 
 drop policy if exists "KP profiles are visible to logged in users" on public.kp_hauling_profiles;
 create policy "KP profiles are visible to logged in users"
@@ -360,6 +376,13 @@ on public.kp_hauling_owner_notifications for all
 to authenticated
 using (public.kp_hauling_is_admin())
 with check (public.kp_hauling_is_admin());
+
+drop policy if exists "KP users manage own push subscriptions" on public.kp_hauling_push_subscriptions;
+create policy "KP users manage own push subscriptions"
+on public.kp_hauling_push_subscriptions for all
+to authenticated
+using (user_id = auth.uid() or public.kp_hauling_is_admin())
+with check (user_id = auth.uid() or public.kp_hauling_is_admin());
 
 -- Blank slate for KP Hauling tables only. Re-running this clears hauling app records,
 -- drivers, availability, dumpsters, jobs, payments, expenses, and notifications.

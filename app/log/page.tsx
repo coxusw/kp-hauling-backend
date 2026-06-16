@@ -217,14 +217,14 @@ export default function LogPage() {
             </label>
           </div>
 
-          <div className="mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
-            <div className="rounded border border-kp-line bg-white p-3"><p className="text-xs font-bold text-stone-500">Mileage</p><p className="text-2xl font-bold">{totals.mileage.toFixed(1)}</p></div>
-            <div className="rounded border border-kp-line bg-white p-3"><p className="text-xs font-bold text-stone-500">Billed</p><p className="text-2xl font-bold">{currency(totals.billed)}</p></div>
-            <div className="rounded border border-kp-line bg-white p-3"><p className="text-xs font-bold text-stone-500">Collected</p><p className="text-2xl font-bold">{currency(totals.collected)}</p></div>
-            <div className="rounded border border-kp-line bg-white p-3"><p className="text-xs font-bold text-stone-500">Driver Cash Held</p><p className="text-2xl font-bold">{currency(driverCashHeld)}</p></div>
-            <div className="rounded border border-kp-line bg-white p-3"><p className="text-xs font-bold text-stone-500">Balances Owed</p><p className="text-2xl font-bold">{currency(totals.balance)}</p></div>
-            <div className="rounded border border-kp-line bg-white p-3"><p className="text-xs font-bold text-stone-500">Expenses</p><p className="text-2xl font-bold">{currency(totals.expenses)}</p></div>
-            <div className="rounded border border-kp-line bg-white p-3"><p className="text-xs font-bold text-stone-500">Net Income</p><p className="text-2xl font-bold">{currency(netIncome)}</p></div>
+          <div className="mb-4 grid grid-cols-4 gap-2 sm:grid-cols-2 sm:gap-3 lg:grid-cols-4 xl:grid-cols-7">
+            <div className="rounded border border-kp-line bg-white p-2 text-center sm:p-3 sm:text-left"><p className="text-[10px] font-bold leading-tight text-stone-500 sm:text-xs">Mileage</p><p className="mt-1 text-lg font-bold leading-none sm:text-2xl">{totals.mileage.toFixed(1)}</p></div>
+            <div className="rounded border border-kp-line bg-white p-2 text-center sm:p-3 sm:text-left"><p className="text-[10px] font-bold leading-tight text-stone-500 sm:text-xs">Billed</p><p className="mt-1 text-lg font-bold leading-none sm:text-2xl">{currency(totals.billed)}</p></div>
+            <div className="rounded border border-kp-line bg-white p-2 text-center sm:p-3 sm:text-left"><p className="text-[10px] font-bold leading-tight text-stone-500 sm:text-xs">Collected</p><p className="mt-1 text-lg font-bold leading-none sm:text-2xl">{currency(totals.collected)}</p></div>
+            <div className="rounded border border-kp-line bg-white p-2 text-center sm:p-3 sm:text-left"><p className="text-[10px] font-bold leading-tight text-stone-500 sm:text-xs">Driver Cash</p><p className="mt-1 text-lg font-bold leading-none sm:text-2xl">{currency(driverCashHeld)}</p></div>
+            <div className="rounded border border-kp-line bg-white p-2 text-center sm:p-3 sm:text-left"><p className="text-[10px] font-bold leading-tight text-stone-500 sm:text-xs">Owed</p><p className="mt-1 text-lg font-bold leading-none sm:text-2xl">{currency(totals.balance)}</p></div>
+            <div className="rounded border border-kp-line bg-white p-2 text-center sm:p-3 sm:text-left"><p className="text-[10px] font-bold leading-tight text-stone-500 sm:text-xs">Expenses</p><p className="mt-1 text-lg font-bold leading-none sm:text-2xl">{currency(totals.expenses)}</p></div>
+            <div className="col-span-2 rounded border border-kp-line bg-white p-2 text-center sm:col-span-1 sm:p-3 sm:text-left"><p className="text-[10px] font-bold leading-tight text-stone-500 sm:text-xs">Net Income</p><p className="mt-1 text-lg font-bold leading-none sm:text-2xl">{currency(netIncome)}</p></div>
           </div>
 
           {tab === "jobs" ? (

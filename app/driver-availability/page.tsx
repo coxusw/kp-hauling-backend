@@ -83,62 +83,66 @@ export default function DriverAvailabilityPage() {
       />
 
       <div className="grid gap-4 lg:grid-cols-[420px_1fr]">
-        <form onSubmit={submit} className="rounded border border-kp-line bg-white p-4 shadow-panel">
-          <div className="mb-3 flex items-center gap-2">
-            <Clock aria-hidden className="h-5 w-5 text-kp-green" />
-            <h2 className="font-bold text-kp-ink">Add My Availability</h2>
-          </div>
-          <p className="mb-3 rounded bg-kp-paper p-3 text-sm font-semibold text-stone-700">
-            Logged in as {current?.name}. No name entry needed.
-          </p>
-          <div className="grid gap-3">
-            <Field label="Available Date" type="date" value={form.date} onChange={(event) => setForm({ ...form, date: event.target.value })} />
-            <div className="grid gap-3 sm:grid-cols-2">
-              <Field label="Start Time" type="time" value={form.startTime} onChange={(event) => setForm({ ...form, startTime: event.target.value })} />
-              <Field label="End Time" type="time" value={form.endTime} onChange={(event) => setForm({ ...form, endTime: event.target.value })} />
-            </div>
-            <TextAreaField
-              label="Notes"
-              value={form.notes}
-              onChange={(event) => setForm({ ...form, notes: event.target.value })}
-              placeholder="Can cover local routes, unavailable for long hauls, call first..."
-            />
-          </div>
-          {message ? <p className="mt-3 rounded bg-kp-paper p-3 text-sm font-semibold text-stone-700">{message}</p> : null}
-          <button type="submit" className="mt-4 flex min-h-10 items-center gap-2 rounded bg-kp-green px-3 text-sm font-bold text-white">
-            <Plus aria-hidden className="h-4 w-4" />
-            Add Availability
-          </button>
-        </form>
+        {!isAdmin ? (
+          <>
+            <form onSubmit={submit} className="rounded border border-kp-line bg-white p-4 shadow-panel">
+              <div className="mb-3 flex items-center gap-2">
+                <Clock aria-hidden className="h-5 w-5 text-kp-green" />
+                <h2 className="font-bold text-kp-ink">Add My Availability</h2>
+              </div>
+              <p className="mb-3 rounded bg-kp-paper p-3 text-sm font-semibold text-stone-700">
+                Logged in as {current?.name}. No name entry needed.
+              </p>
+              <div className="grid gap-3">
+                <Field label="Available Date" type="date" value={form.date} onChange={(event) => setForm({ ...form, date: event.target.value })} />
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <Field label="Start Time" type="time" value={form.startTime} onChange={(event) => setForm({ ...form, startTime: event.target.value })} />
+                  <Field label="End Time" type="time" value={form.endTime} onChange={(event) => setForm({ ...form, endTime: event.target.value })} />
+                </div>
+                <TextAreaField
+                  label="Notes"
+                  value={form.notes}
+                  onChange={(event) => setForm({ ...form, notes: event.target.value })}
+                  placeholder="Can cover local routes, unavailable for long hauls, call first..."
+                />
+              </div>
+              {message ? <p className="mt-3 rounded bg-kp-paper p-3 text-sm font-semibold text-stone-700">{message}</p> : null}
+              <button type="submit" className="mt-4 flex min-h-10 items-center gap-2 rounded bg-kp-green px-3 text-sm font-bold text-white">
+                <Plus aria-hidden className="h-4 w-4" />
+                Add Availability
+              </button>
+            </form>
 
-        <section className="rounded border border-kp-line bg-white shadow-panel">
-          <div className="flex items-center gap-2 border-b border-kp-line p-3">
-            <CalendarDays aria-hidden className="h-5 w-5 text-kp-green" />
-            <h2 className="font-bold text-kp-ink">My Availability</h2>
-          </div>
-          <div className="divide-y divide-kp-line">
-            {currentWindows.length > 0 ? currentWindows.map((window) => (
-              <article key={window.id} className="grid gap-2 p-3 text-sm sm:grid-cols-[1fr_1fr_1.4fr_90px] sm:items-center">
-                <p className="font-bold text-kp-ink">{formatDate(window.date)}</p>
-                <p>{formatTime(window.startTime)} - {formatTime(window.endTime)}</p>
-                <p className="text-stone-600">{window.notes || "No notes."}</p>
-                <button
-                  type="button"
-                  onClick={() => removeWindow(window.id)}
-                  className="flex min-h-9 items-center justify-center gap-2 rounded border border-kp-line bg-white px-2 text-xs font-bold text-red-700"
-                >
-                  <Trash2 aria-hidden className="h-4 w-4" />
-                  Remove
-                </button>
-              </article>
-            )) : (
-              <div className="p-5 text-sm text-stone-600">No availability entered yet.</div>
-            )}
-          </div>
-        </section>
+            <section className="rounded border border-kp-line bg-white shadow-panel">
+              <div className="flex items-center gap-2 border-b border-kp-line p-3">
+                <CalendarDays aria-hidden className="h-5 w-5 text-kp-green" />
+                <h2 className="font-bold text-kp-ink">My Availability</h2>
+              </div>
+              <div className="divide-y divide-kp-line">
+                {currentWindows.length > 0 ? currentWindows.map((window) => (
+                  <article key={window.id} className="grid gap-2 p-3 text-sm sm:grid-cols-[1fr_1fr_1.4fr_90px] sm:items-center">
+                    <p className="font-bold text-kp-ink">{formatDate(window.date)}</p>
+                    <p>{formatTime(window.startTime)} - {formatTime(window.endTime)}</p>
+                    <p className="text-stone-600">{window.notes || "No notes."}</p>
+                    <button
+                      type="button"
+                      onClick={() => removeWindow(window.id)}
+                      className="flex min-h-9 items-center justify-center gap-2 rounded border border-kp-line bg-white px-2 text-xs font-bold text-red-700"
+                    >
+                      <Trash2 aria-hidden className="h-4 w-4" />
+                      Remove
+                    </button>
+                  </article>
+                )) : (
+                  <div className="p-5 text-sm text-stone-600">No availability entered yet.</div>
+                )}
+              </div>
+            </section>
+          </>
+        ) : null}
 
         {isAdmin ? (
-          <section className="rounded border border-kp-line bg-white shadow-panel lg:col-span-2">
+          <section className={`rounded border border-kp-line bg-white shadow-panel ${isAdmin ? "lg:col-span-2" : "lg:col-span-2"}`}>
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-kp-line p-3">
               <div className="flex items-center gap-2">
                 <Users aria-hidden className="h-5 w-5 text-kp-green" />
