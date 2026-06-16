@@ -213,8 +213,25 @@ create table if not exists public.kp_hauling_push_subscriptions (
   notify_pickup_due boolean not null default true,
   notify_driver_updates boolean not null default true,
   notify_availability boolean not null default true,
+  daily_reminder_time time not null default '07:00',
+  reminder_timezone text not null default 'America/Chicago',
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
+);
+
+alter table public.kp_hauling_push_subscriptions
+  add column if not exists daily_reminder_time time not null default '07:00';
+
+alter table public.kp_hauling_push_subscriptions
+  add column if not exists reminder_timezone text not null default 'America/Chicago';
+
+create table if not exists public.kp_hauling_due_reminder_sends (
+  id uuid primary key default gen_random_uuid(),
+  subscription_id uuid not null references public.kp_hauling_push_subscriptions(id) on delete cascade,
+  user_id uuid not null references public.kp_hauling_profiles(id) on delete cascade,
+  reminder_date date not null,
+  created_at timestamptz not null default now(),
+  unique (subscription_id, reminder_date)
 );
 
 create or replace function public.kp_hauling_is_admin()
@@ -242,6 +259,7 @@ alter table public.kp_hauling_expenses enable row level security;
 alter table public.kp_hauling_driver_cash_handoffs enable row level security;
 alter table public.kp_hauling_owner_notifications enable row level security;
 alter table public.kp_hauling_push_subscriptions enable row level security;
+alter table public.kp_hauling_due_reminder_sends enable row level security;
 
 drop policy if exists "KP profiles are visible to logged in users" on public.kp_hauling_profiles;
 create policy "KP profiles are visible to logged in users"
@@ -384,9 +402,16 @@ to authenticated
 using (user_id = auth.uid() or public.kp_hauling_is_admin())
 with check (user_id = auth.uid() or public.kp_hauling_is_admin());
 
+drop policy if exists "KP admins read due reminder sends" on public.kp_hauling_due_reminder_sends;
+create policy "KP admins read due reminder sends"
+on public.kp_hauling_due_reminder_sends for select
+to authenticated
+using (public.kp_hauling_is_admin());
+
 -- Blank slate for KP Hauling tables only. Re-running this clears hauling app records,
 -- drivers, availability, dumpsters, jobs, payments, expenses, and notifications.
 truncate table
+  public.kp_hauling_due_reminder_sends,
   public.kp_hauling_owner_notifications,
   public.kp_hauling_driver_cash_handoffs,
   public.kp_hauling_expenses,

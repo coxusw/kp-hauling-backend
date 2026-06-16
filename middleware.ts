@@ -20,6 +20,7 @@ function isAsset(pathname: string) {
     pathname.endsWith(".svg") ||
     pathname.endsWith(".webp") ||
     pathname.endsWith(".webmanifest") ||
+    pathname.endsWith(".js") ||
     pathname.endsWith(".woff") ||
     pathname.endsWith(".woff2")
   );
@@ -35,6 +36,10 @@ export function middleware(request: NextRequest) {
   const appPath = stripBasePath(pathname);
   const role = request.cookies.get(SESSION_ROLE_COOKIE)?.value as UserRole | undefined;
   const loginUrl = new URL(`${basePath}/login`, request.url);
+
+  if (appPath.startsWith("/api/")) {
+    return NextResponse.next();
+  }
 
   if (publicPaths.includes(appPath)) {
     return NextResponse.next();

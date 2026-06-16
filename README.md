@@ -7,7 +7,7 @@ Local-only business backend prototype for tracking dumpster inventory, rentals, 
 - Next.js App Router
 - TypeScript
 - Tailwind CSS
-- Supabase-ready structure
+- Supabase-backed test structure
 - Blank local data by default
 
 ## Run Locally
@@ -31,7 +31,7 @@ https://tap-deck.com/hauling
 
 Routes outside `/hauling` are intentionally ignored by this app and its middleware so the existing Tap Deck site is not affected.
 
-No live Supabase project is required for this prototype mode.
+If Supabase variables are not configured, the app falls back to local test storage. Hosted testing should use Supabase.
 
 ## Test Login
 
@@ -77,7 +77,7 @@ Use Inventory to:
 - Put out-of-service dumpsters back in service
 - Delete dumpsters that are no longer in service after active jobs are cleared
 
-Records are saved in browser `localStorage` for local review. They are not sent anywhere and are not connected to Supabase yet.
+When Supabase is configured, records are saved to KP-prefixed Supabase tables. If Supabase is not configured, records are saved in browser `localStorage` for local review.
 
 An optional sample/reference seed file remains in:
 
@@ -123,29 +123,38 @@ Change that value when you want to review how alerts and calendar buckets respon
 
 The app includes PWA metadata so it can be added to a phone home screen from the browser while testing.
 
-Current test-mode notifications are in-app only. True push notifications for admins and drivers should be added with Supabase-backed auth/database records plus a server-side push service. Planned notification events:
+Push notifications use browser push subscriptions saved in Supabase. Users can choose the reminder types they want and set their own daily due-reminder time from Settings.
 
 - Admin: driver availability changed
-- Admin: job due for pickup
+- Admin: drop-offs due, pickups due, and overdue pickups
 - Driver: delivery assigned
 - Driver: pickup assigned
+- Driver: assigned drop-offs due, assigned pickups due, and assigned overdue pickups
 
-## Supabase-Ready Notes
+Vercel Cron checks `/hauling/api/cron/due-reminders` every 15 minutes. The endpoint only sends when a user's saved reminder time is reached, and it records a sent-history row to avoid duplicate same-day reminders.
 
-The app intentionally runs from seed data for now. Future Supabase connection points are marked in code comments in:
+## Supabase Notes
+
+Run the setup SQL in Supabase SQL Editor:
 
 ```text
-lib/supabase/client.ts
-lib/data.ts
-app/driver/page.tsx
+supabase/kp-hauling-setup.sql
 ```
 
-When credentials are ready:
+If the main setup was already run before cron reminders existed, run this incremental SQL instead:
 
-1. Copy `.env.example` to `.env.local`.
-2. Add `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY`.
-3. Replace the local getters in `lib/data.ts` with typed Supabase queries.
-4. Update the driver action in `app/driver/page.tsx` to write job and dumpster status changes in one transaction or server action.
+```text
+supabase/kp-hauling-cron-reminders.sql
+```
+
+Required Vercel environment variables:
+
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `NEXT_PUBLIC_VAPID_PUBLIC_KEY`
+- `VAPID_PRIVATE_KEY`
+- `CRON_SECRET` optional, but recommended
 
 ## Mileage Tracking
 
@@ -187,10 +196,10 @@ When you are ready for hosting:
 
 1. Create the Supabase project and tables.
 2. Add the same Supabase variables in Vercel project settings.
-3. Replace seed-data reads with Supabase queries or server actions.
+3. Add the VAPID push keys in Vercel project settings.
 4. Keep production-only secrets out of committed files.
 
-For now, the app uses browser-saved records and browser-saved demo logins.
+For hosted testing, the app uses Supabase records and Supabase Auth.
 
 ## Future Features
 

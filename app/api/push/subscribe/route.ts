@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
 
   const { data } = await client
     .from("kp_hauling_push_subscriptions")
-    .select("notify_dispatch,notify_pickup_due,notify_driver_updates,notify_availability")
+    .select("notify_dispatch,notify_pickup_due,notify_driver_updates,notify_availability,daily_reminder_time,reminder_timezone")
     .eq("user_id", userId)
     .limit(1)
     .maybeSingle();
@@ -43,7 +43,9 @@ export async function GET(request: NextRequest) {
       notify_dispatch: true,
       notify_pickup_due: true,
       notify_driver_updates: true,
-      notify_availability: true
+      notify_availability: true,
+      daily_reminder_time: "07:00",
+      reminder_timezone: "America/Chicago"
     }
   });
 }
@@ -70,6 +72,8 @@ export async function POST(request: NextRequest) {
     notify_pickup_due: body.preferences?.notify_pickup_due ?? true,
     notify_driver_updates: body.preferences?.notify_driver_updates ?? true,
     notify_availability: body.preferences?.notify_availability ?? true,
+    daily_reminder_time: body.preferences?.daily_reminder_time ?? "07:00",
+    reminder_timezone: body.preferences?.reminder_timezone ?? "America/Chicago",
     updated_at: new Date().toISOString()
   }, { onConflict: "endpoint" });
 
@@ -94,6 +98,8 @@ export async function PUT(request: NextRequest) {
       notify_pickup_due: preferences.notify_pickup_due,
       notify_driver_updates: preferences.notify_driver_updates,
       notify_availability: preferences.notify_availability,
+      daily_reminder_time: preferences.daily_reminder_time ?? "07:00",
+      reminder_timezone: preferences.reminder_timezone ?? "America/Chicago",
       updated_at: new Date().toISOString()
     })
     .eq("user_id", userId);

@@ -16,13 +16,18 @@ type PushPreferences = {
   notify_pickup_due: boolean;
   notify_driver_updates: boolean;
   notify_availability: boolean;
+  daily_reminder_time: string;
+  reminder_timezone: string;
 };
+type BooleanPushPreference = "notify_dispatch" | "notify_pickup_due" | "notify_driver_updates" | "notify_availability";
 
 const defaultPreferences: PushPreferences = {
   notify_dispatch: true,
   notify_pickup_due: true,
   notify_driver_updates: true,
-  notify_availability: true
+  notify_availability: true,
+  daily_reminder_time: "07:00",
+  reminder_timezone: "America/Chicago"
 };
 
 function isIosDevice() {
@@ -145,9 +150,7 @@ export default function SettingsPage() {
     setPushMessage(response.ok ? "Notifications enabled for this device." : "Unable to save notification settings.");
   }
 
-  async function updatePreference(key: keyof PushPreferences, value: boolean) {
-    const next = { ...preferences, [key]: value };
-    setPreferences(next);
+  async function savePreferences(next: PushPreferences) {
     await fetch(`${basePath}/api/push/subscribe`, {
       method: "PUT",
       headers: await authHeaders(),
@@ -155,15 +158,27 @@ export default function SettingsPage() {
     }).catch(() => undefined);
   }
 
-  const adminOptions: Array<[keyof PushPreferences, string]> = [
+  async function updatePreference(key: BooleanPushPreference, value: boolean) {
+    const next = { ...preferences, [key]: value };
+    setPreferences(next);
+    await savePreferences(next);
+  }
+
+  async function updateReminderTime(value: string) {
+    const next = { ...preferences, daily_reminder_time: value || "07:00" };
+    setPreferences(next);
+    await savePreferences(next);
+  }
+
+  const adminOptions: Array<[BooleanPushPreference, string]> = [
     ["notify_availability", "Driver availability changes"],
-    ["notify_pickup_due", "Pickup due reminders"],
+    ["notify_pickup_due", "Drop-off and pickup reminders"],
     ["notify_driver_updates", "Driver completed drop-off/pickup"],
     ["notify_dispatch", "Dispatch assignment changes"]
   ];
-  const driverOptions: Array<[keyof PushPreferences, string]> = [
+  const driverOptions: Array<[BooleanPushPreference, string]> = [
     ["notify_dispatch", "Jobs dispatched to me"],
-    ["notify_pickup_due", "Pickup reminders"],
+    ["notify_pickup_due", "Drop-off and pickup reminders"],
     ["notify_driver_updates", "Route completion updates"]
   ];
   const options = isAdmin ? adminOptions : driverOptions;
@@ -220,7 +235,21 @@ export default function SettingsPage() {
         </button>
         {pushMessage ? <p className="mt-2 text-sm font-semibold text-stone-700">{pushMessage}</p> : null}
 
-        <div className="mt-4 space-y-2">
+        <div className="mt-4 rounded border border-kp-line bg-kp-paper p-3">
+          <label className="grid gap-2 text-sm font-bold text-kp-ink sm:grid-cols-[1fr_auto] sm:items-center">
+            <span>Daily due reminder time</span>
+            <input
+              type="time"
+              step={900}
+              value={preferences.daily_reminder_time}
+              onChange={(event) => updateReminderTime(event.target.value)}
+              className="min-h-10 rounded border border-kp-line bg-white px-3 text-sm font-bold text-kp-ink"
+            />
+          </label>
+          <p className="mt-2 text-xs font-semibold text-stone-500">Used for drop-offs due today, pickups due today, and overdue pickups.</p>
+        </div>
+
+        <div className="mt-3 space-y-2">
           {options.map(([key, label]) => (
             <label key={key} className="flex min-h-11 items-center justify-between gap-3 rounded border border-kp-line bg-kp-paper px-3 text-sm font-bold text-kp-ink">
               <span>{label}</span>
