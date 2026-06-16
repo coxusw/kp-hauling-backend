@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle, CalendarClock, CheckCircle2, Clock, PackageCheck, Route, Trash2, Truck, Warehouse } from "lucide-react";
+import { AlertTriangle, CalendarClock, CheckCircle2, Clock, PackageCheck, Route, Truck, Warehouse } from "lucide-react";
 import Link from "next/link";
 import { currency, displayDate, displayTime, getAlerts, getDashboardStats, getJobBalance } from "@/lib/data";
 import { MetricCard } from "@/components/metric-card";
@@ -34,18 +34,6 @@ export default function DashboardPage() {
         title="Operations Dashboard"
         description="Watch inventory pressure, pickup deadlines, dispatch status, and operational alerts from one clean command center."
       />
-      {operations.loaded ? (
-        <div className="mb-4 flex justify-end">
-          <button
-            type="button"
-            onClick={operations.clearAll}
-            className="flex min-h-10 items-center gap-2 rounded border border-kp-line bg-white px-3 text-sm font-semibold text-stone-700 transition hover:border-red-300 hover:text-red-700"
-          >
-            <Trash2 aria-hidden className="h-4 w-4" />
-            Clear Local Data
-          </button>
-        </div>
-      ) : null}
       {!operations.loaded ? <LoadingPanel /> : null}
       {operations.loaded ? (
       <>
