@@ -167,9 +167,11 @@ export function JobCard({ job, onDelete, onPaymentChange, onUpdate, onStatusChan
             <Field label="Pickup Date" type="date" value={editForm.expectedPickupDate ?? ""} onChange={(event) => setEditForm({ ...editForm, expectedPickupDate: event.target.value })} />
             <Field label="Pickup Time" type="time" value={editForm.expectedPickupTime ?? ""} onChange={(event) => setEditForm({ ...editForm, expectedPickupTime: event.target.value })} />
             <Field label="Base Price" type="number" value={editForm.price ?? 0} onChange={(event) => setEditForm({ ...editForm, price: Number(event.target.value) })} />
-            <Field label="Drop-off Mileage" type="number" value={editForm.estimatedOneWayMiles ?? ""} onChange={(event) => setEditForm({ ...editForm, estimatedOneWayMiles: event.target.value === "" ? undefined : Number(event.target.value) })} />
+            <Field label="Drop-off Miles To Job" type="number" min={0} step="0.1" value={editForm.estimatedOneWayMiles ?? ""} onChange={(event) => setEditForm({ ...editForm, estimatedOneWayMiles: event.target.value === "" ? undefined : Number(event.target.value) })} />
+            <Field label="Drop-off Return To Yard" type="number" min={0} step="0.1" value={editForm.deliveryReturnMiles ?? ""} onChange={(event) => setEditForm({ ...editForm, deliveryReturnMiles: event.target.value === "" ? undefined : Number(event.target.value) })} />
             <Field label="Pickup Destination" value={editForm.pickupDestinationAddress ?? ""} onChange={(event) => setEditForm({ ...editForm, pickupDestinationAddress: event.target.value })} />
-            <Field label="Pickup Mileage" type="number" value={editForm.pickupOneWayMiles ?? ""} onChange={(event) => setEditForm({ ...editForm, pickupOneWayMiles: event.target.value === "" ? undefined : Number(event.target.value) })} />
+            <Field label="Pickup Miles To Job" type="number" min={0} step="0.1" value={editForm.pickupOneWayMiles ?? ""} onChange={(event) => setEditForm({ ...editForm, pickupOneWayMiles: event.target.value === "" ? undefined : Number(event.target.value) })} />
+            <Field label="Pickup Return To Yard" type="number" min={0} step="0.1" value={editForm.pickupReturnMiles ?? ""} onChange={(event) => setEditForm({ ...editForm, pickupReturnMiles: event.target.value === "" ? undefined : Number(event.target.value) })} />
             <SelectField label="Status" value={editForm.status ?? job.status} onChange={(event) => setEditForm({ ...editForm, status: event.target.value as RentalJob["status"] })}>
               <option>Scheduled Drop-Off</option>
               <option>Delivered</option>

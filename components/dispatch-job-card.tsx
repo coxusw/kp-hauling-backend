@@ -15,7 +15,7 @@ type DispatchJobCardProps = {
   onPaymentChange: (jobId: string, paymentStatus: PaymentStatus) => void;
   onUpdate: (jobId: string, updates: Partial<RentalJob>) => void;
   onStatusChange: (jobId: string, status: RentalJob["status"]) => void;
-  onCompletePickup: (jobId: string, pickupDestinationAddress: string, pickupOneWayMiles?: number) => void;
+  onCompletePickup: (jobId: string, pickupDestinationAddress: string, pickupOneWayMiles?: number, pickupReturnMiles?: number) => void;
   onAddCharge: (jobId: string, label: string, amount: number) => void;
   onAddPayment: (jobId: string, amount: number, note: string) => void;
   drivers: AppUser[];
@@ -39,6 +39,7 @@ export function DispatchJobCard({
   const [paymentNote, setPaymentNote] = useState("");
   const [pickupDestination, setPickupDestination] = useState(job.pickupDestinationAddress || "KP yard");
   const [pickupMiles, setPickupMiles] = useState(job.pickupOneWayMiles === undefined ? "" : String(job.pickupOneWayMiles));
+  const [pickupReturnMiles, setPickupReturnMiles] = useState(job.pickupReturnMiles === undefined ? "" : String(job.pickupReturnMiles));
   const isPickupDispatch = job.status === "Delivered" || job.status === "Pickup Needed" || job.status === "Overdue";
   const dispatchDateDefault = isPickupDispatch ? job.expectedPickupDate : job.dropOffDate;
   const [dispatchDate, setDispatchDate] = useState(dispatchDateDefault);
@@ -76,10 +77,14 @@ export function DispatchJobCard({
   function submitPickup(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const miles = pickupMiles === "" ? undefined : Number(pickupMiles);
+    const returnMiles = pickupReturnMiles === "" ? undefined : Number(pickupReturnMiles);
     if (miles !== undefined && (!Number.isFinite(miles) || miles < 0)) {
       return;
     }
-    onCompletePickup(job.id, pickupDestination, miles);
+    if (returnMiles !== undefined && (!Number.isFinite(returnMiles) || returnMiles < 0)) {
+      return;
+    }
+    onCompletePickup(job.id, pickupDestination, miles, returnMiles);
     setPanel(null);
   }
 
@@ -267,7 +272,10 @@ export function DispatchJobCard({
         <form onSubmit={submitPickup} className="mt-2 rounded border border-kp-line bg-kp-paper p-2">
           <div className="grid gap-2">
             <Field label="Dumpster Going To" value={pickupDestination} onChange={(event) => setPickupDestination(event.target.value)} placeholder="KP yard, next job, disposal site..." />
-            <Field label="Pickup Mileage" type="number" min={0} step="0.1" value={pickupMiles} onChange={(event) => setPickupMiles(event.target.value)} />
+            <div className="grid gap-2 sm:grid-cols-2">
+              <Field label="Pickup Miles To Job" type="number" min={0} step="0.1" value={pickupMiles} onChange={(event) => setPickupMiles(event.target.value)} />
+              <Field label="Pickup Return To Yard" type="number" min={0} step="0.1" value={pickupReturnMiles} onChange={(event) => setPickupReturnMiles(event.target.value)} />
+            </div>
           </div>
           <button type="submit" className="mt-2 rounded bg-kp-green px-3 py-2 text-xs font-bold text-white">Save Pickup</button>
         </form>

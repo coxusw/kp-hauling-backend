@@ -59,7 +59,8 @@ export default function JobEditPage() {
         operations.completePickupWithDestination(
           job.id,
           form.pickupDestinationAddress || "KP yard",
-          form.pickupOneWayMiles
+          form.pickupOneWayMiles,
+          form.pickupReturnMiles
         );
       } else {
         operations.updateJobStatus(job.id, nextStatus);

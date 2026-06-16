@@ -255,7 +255,7 @@ export function useOperations() {
           )
         );
       },
-      completePickupWithDestination(jobId: string, pickupDestinationAddress: string, pickupOneWayMiles?: number) {
+      completePickupWithDestination(jobId: string, pickupDestinationAddress: string, pickupOneWayMiles?: number, pickupReturnMiles?: number) {
         const destination = pickupDestinationAddress.trim() || "KP yard";
         setJobs((current) =>
           current.map((job) =>
@@ -265,7 +265,8 @@ export function useOperations() {
                   status: "Picked Up / Completed" as const,
                   actualPickupDate: new Date().toISOString().slice(0, 10),
                   pickupDestinationAddress: destination,
-                  pickupOneWayMiles
+                  pickupOneWayMiles,
+                  pickupReturnMiles
                 }
               : job
           )
