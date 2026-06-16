@@ -3,6 +3,8 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import type { AppUser, DriverAvailabilityStatus, DriverAvailabilityWindow, UserRole } from "@/lib/auth";
 import { CURRENT_USER_STORAGE_KEY, defaultUsers, makeAvailabilityId, makeUserId, SESSION_ID_COOKIE, SESSION_ROLE_COOKIE, USERS_STORAGE_KEY } from "@/lib/auth";
+import { isSupabaseConfigured, loadSupabaseUsers } from "@/lib/supabase/auth-db";
+import { supabase } from "@/lib/supabase/client";
 
 type NewUserInput = {
   name: string;
@@ -16,13 +18,13 @@ type AuthContextValue = {
   users: AppUser[];
   currentUser?: AppUser;
   loaded: boolean;
-  login: (email: string, password: string) => boolean;
-  logout: () => void;
-  addUser: (input: NewUserInput) => { ok: boolean; message?: string };
-  removeUser: (userId: string) => { ok: boolean; message?: string };
-  addDriverAvailability: (userId: string, input: Pick<DriverAvailabilityWindow, "date" | "startTime" | "endTime" | "notes">) => { ok: boolean; message?: string };
-  removeDriverAvailability: (userId: string, availabilityId: string) => void;
-  updateDriverAvailability: (userId: string, status: DriverAvailabilityStatus, notes: string) => void;
+  login: (email: string, password: string) => Promise<boolean>;
+  logout: () => Promise<void>;
+  addUser: (input: NewUserInput) => Promise<{ ok: boolean; message?: string }>;
+  removeUser: (userId: string) => Promise<{ ok: boolean; message?: string }>;
+  addDriverAvailability: (userId: string, input: Pick<DriverAvailabilityWindow, "date" | "startTime" | "endTime" | "notes">) => Promise<{ ok: boolean; message?: string }>;
+  removeDriverAvailability: (userId: string, availabilityId: string) => Promise<void>;
+  updateDriverAvailability: (userId: string, status: DriverAvailabilityStatus, notes: string) => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -48,19 +50,42 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [users, setUsers] = useState<AppUser[]>(defaultUsers);
   const [currentUserId, setCurrentUserId] = useState<string>();
   const [loaded, setLoaded] = useState(false);
+  const useSupabaseAuth = isSupabaseConfigured();
+
+  async function reloadSupabaseUsers(nextCurrentUserId?: string) {
+    if (!supabase) {
+      return;
+    }
+    const nextUsers = await loadSupabaseUsers();
+    setUsers(nextUsers.length > 0 ? nextUsers : defaultUsers);
+    if (nextCurrentUserId !== undefined) {
+      setCurrentUserId(nextCurrentUserId);
+    }
+  }
 
   useEffect(() => {
+    if (useSupabaseAuth && supabase) {
+      supabase.auth.getSession().then(async ({ data }) => {
+        try {
+          await reloadSupabaseUsers(data.session?.user.id);
+        } finally {
+          setLoaded(true);
+        }
+      });
+      return;
+    }
+
     const storedUsers = readStored<AppUser[]>(USERS_STORAGE_KEY, defaultUsers);
     setUsers(storedUsers.length > 0 ? storedUsers : defaultUsers);
     setCurrentUserId(window.localStorage.getItem(CURRENT_USER_STORAGE_KEY) ?? undefined);
     setLoaded(true);
-  }, []);
+  }, [useSupabaseAuth]);
 
   useEffect(() => {
-    if (loaded) {
+    if (loaded && !useSupabaseAuth) {
       window.localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
     }
-  }, [loaded, users]);
+  }, [loaded, useSupabaseAuth, users]);
 
   const currentUser = users.find((user) => user.id === currentUserId);
 
@@ -79,7 +104,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       users,
       currentUser,
       loaded,
-      login(email: string, password: string) {
+      async login(email: string, password: string) {
+        if (supabase) {
+          const { data, error } = await supabase.auth.signInWithPassword({
+            email: email.trim().toLowerCase(),
+            password
+          });
+          if (error || !data.user) {
+            return false;
+          }
+          await reloadSupabaseUsers(data.user.id);
+          return true;
+        }
+
         const match = users.find(
           (user) => user.email.trim().toLowerCase() === email.trim().toLowerCase() && user.password === password
         );
@@ -92,19 +129,40 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setCurrentUserId(match.id);
         return true;
       },
-      logout() {
+      async logout() {
+        if (supabase) {
+          await supabase.auth.signOut();
+        }
         window.localStorage.removeItem(CURRENT_USER_STORAGE_KEY);
         document.cookie = `${SESSION_ID_COOKIE}=; path=/; max-age=0; SameSite=Lax`;
         document.cookie = `${SESSION_ROLE_COOKIE}=; path=/; max-age=0; SameSite=Lax`;
         setCurrentUserId(undefined);
       },
-      addUser(input: NewUserInput) {
+      async addUser(input: NewUserInput) {
         const email = input.email.trim().toLowerCase();
         if (!input.name.trim() || !email || !input.password.trim()) {
           return { ok: false, message: "Name, email, and password are required." };
         }
         if (users.some((user) => user.email.toLowerCase() === email)) {
           return { ok: false, message: "That login already exists." };
+        }
+
+        if (supabase) {
+          const { data: sessionData } = await supabase.auth.getSession();
+          const response = await fetch("/hauling/api/hauling-users", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${sessionData.session?.access_token ?? ""}`
+            },
+            body: JSON.stringify({ ...input, email })
+          });
+          const result = await response.json().catch(() => ({}));
+          if (!response.ok) {
+            return { ok: false, message: result.message ?? "Unable to add login." };
+          }
+          await reloadSupabaseUsers(currentUserId);
+          return { ok: true };
         }
 
         setUsers((current) => [
@@ -123,20 +181,57 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         ]);
         return { ok: true };
       },
-      removeUser(userId: string) {
+      async removeUser(userId: string) {
         if (userId === currentUser?.id) {
           return { ok: false, message: "You cannot remove the login you are currently using." };
+        }
+
+        if (supabase) {
+          const { data: sessionData } = await supabase.auth.getSession();
+          const response = await fetch("/hauling/api/hauling-users", {
+            method: "DELETE",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${sessionData.session?.access_token ?? ""}`
+            },
+            body: JSON.stringify({ userId })
+          });
+          const result = await response.json().catch(() => ({}));
+          if (!response.ok) {
+            return { ok: false, message: result.message ?? "Unable to remove login." };
+          }
+          await reloadSupabaseUsers(currentUserId);
+          return { ok: true };
         }
 
         setUsers((current) => current.filter((user) => user.id !== userId));
         return { ok: true };
       },
-      addDriverAvailability(userId, input) {
+      async addDriverAvailability(userId, input) {
         if (!input.date || !input.startTime || !input.endTime) {
           return { ok: false, message: "Date, start time, and end time are required." };
         }
         if (input.startTime >= input.endTime) {
           return { ok: false, message: "End time must be after start time." };
+        }
+
+        if (supabase) {
+          const { error } = await supabase.from("kp_hauling_driver_availability_windows").insert({
+            driver_id: userId,
+            available_date: input.date,
+            start_time: input.startTime,
+            end_time: input.endTime,
+            notes: input.notes?.trim() || null
+          });
+          if (error) {
+            return { ok: false, message: error.message };
+          }
+          await supabase.from("kp_hauling_profiles").update({
+            availability_status: "Available",
+            availability_updated_at: new Date().toISOString()
+          }).eq("id", userId);
+          await reloadSupabaseUsers(currentUserId);
+          return { ok: true };
         }
 
         setUsers((current) =>
@@ -163,7 +258,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         );
         return { ok: true };
       },
-      removeDriverAvailability(userId, availabilityId) {
+      async removeDriverAvailability(userId, availabilityId) {
+        if (supabase) {
+          await supabase.from("kp_hauling_driver_availability_windows").delete().eq("id", availabilityId).eq("driver_id", userId);
+          await supabase.from("kp_hauling_profiles").update({ availability_updated_at: new Date().toISOString() }).eq("id", userId);
+          await reloadSupabaseUsers(currentUserId);
+          return;
+        }
+
         setUsers((current) =>
           current.map((user) =>
             user.id === userId
@@ -176,7 +278,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           )
         );
       },
-      updateDriverAvailability(userId: string, status: DriverAvailabilityStatus, notes: string) {
+      async updateDriverAvailability(userId: string, status: DriverAvailabilityStatus, notes: string) {
+        if (supabase) {
+          await supabase.from("kp_hauling_profiles").update({
+            availability_status: status,
+            availability_notes: notes.trim(),
+            availability_updated_at: new Date().toISOString()
+          }).eq("id", userId);
+          await reloadSupabaseUsers(currentUserId);
+          return;
+        }
+
         setUsers((current) =>
           current.map((user) =>
             user.id === userId
@@ -191,7 +303,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         );
       }
     }),
-    [currentUser, loaded, users]
+    [currentUser, currentUserId, loaded, users]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

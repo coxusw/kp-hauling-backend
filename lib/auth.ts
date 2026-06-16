@@ -15,7 +15,7 @@ export type AppUser = {
   id: string;
   name: string;
   email: string;
-  password: string;
+  password?: string;
   role: UserRole;
   phone?: string;
   availabilityStatus?: DriverAvailabilityStatus;

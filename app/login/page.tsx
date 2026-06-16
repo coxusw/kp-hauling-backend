@@ -11,10 +11,14 @@ export default function LoginPage() {
   const [email, setEmail] = useState("admin@kp.local");
   const [password, setPassword] = useState("admin123");
   const [error, setError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  function submit(event: FormEvent<HTMLFormElement>) {
+  async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const ok = auth.login(email, password);
+    setError("");
+    setIsSubmitting(true);
+    const ok = await auth.login(email, password);
+    setIsSubmitting(false);
     if (!ok) {
       setError("Login not found. Check the email and password.");
     }
@@ -38,9 +42,9 @@ export default function LoginPage() {
 
         {error ? <p className="mt-3 rounded border border-red-200 bg-red-50 p-3 text-sm font-semibold text-red-700">{error}</p> : null}
 
-        <button type="submit" className="mt-5 flex min-h-11 w-full items-center justify-center gap-2 rounded bg-kp-green px-4 text-sm font-bold text-white transition hover:bg-kp-ink">
+        <button type="submit" disabled={isSubmitting} className="mt-5 flex min-h-11 w-full items-center justify-center gap-2 rounded bg-kp-green px-4 text-sm font-bold text-white transition hover:bg-kp-ink disabled:cursor-not-allowed disabled:bg-stone-400">
           <LogIn aria-hidden className="h-4 w-4" />
-          Login
+          {isSubmitting ? "Logging in..." : "Login"}
         </button>
 
         <p className="mt-4 rounded bg-kp-paper p-3 text-xs leading-5 text-stone-600">

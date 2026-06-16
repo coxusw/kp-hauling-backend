@@ -52,12 +52,12 @@ export default function DriverAvailabilityPage() {
     [drivers, selectedDate]
   );
 
-  function submit(event: FormEvent<HTMLFormElement>) {
+  async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!current) {
       return;
     }
-    const result = auth.addDriverAvailability(current.id, form);
+    const result = await auth.addDriverAvailability(current.id, form);
     if (!result.ok) {
       setMessage(result.message ?? "Unable to save availability.");
       return;
@@ -67,11 +67,11 @@ export default function DriverAvailabilityPage() {
     setSelectedDate(form.date);
   }
 
-  function removeWindow(availabilityId: string) {
+  async function removeWindow(availabilityId: string) {
     if (!current) {
       return;
     }
-    auth.removeDriverAvailability(current.id, availabilityId);
+    await auth.removeDriverAvailability(current.id, availabilityId);
     setMessage("Availability removed.");
   }
 

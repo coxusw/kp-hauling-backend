@@ -132,9 +132,9 @@ export default function DriversPage() {
   });
   const drivers = useMemo(() => auth.users.filter((user) => user.role === "driver"), [auth.users]);
 
-  function submit(event: FormEvent<HTMLFormElement>) {
+  async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const result = auth.addUser(form);
+    const result = await auth.addUser(form);
     if (!result.ok) {
       setMessage(result.message ?? "Unable to add login.");
       return;
@@ -143,8 +143,8 @@ export default function DriversPage() {
     setForm({ name: "", email: "", password: "", phone: "", role: "driver" });
   }
 
-  function removeUser(userId: string) {
-    const result = auth.removeUser(userId);
+  async function removeUser(userId: string) {
+    const result = await auth.removeUser(userId);
     setMessage(result.ok ? "Login removed." : result.message ?? "Unable to remove login.");
   }
 
