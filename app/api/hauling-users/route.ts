@@ -5,12 +5,25 @@ import type { UserRole } from "@/lib/auth";
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
+function isValidSupabaseUrl(value?: string) {
+  if (!value) {
+    return false;
+  }
+
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" || url.protocol === "http:";
+  } catch {
+    return false;
+  }
+}
+
 function serverClient() {
-  if (!supabaseUrl || !serviceRoleKey) {
+  if (!isValidSupabaseUrl(supabaseUrl) || !serviceRoleKey) {
     return null;
   }
 
-  return createClient(supabaseUrl, serviceRoleKey, {
+  return createClient(supabaseUrl!, serviceRoleKey, {
     auth: {
       autoRefreshToken: false,
       persistSession: false
