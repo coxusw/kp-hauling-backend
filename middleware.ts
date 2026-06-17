@@ -3,7 +3,7 @@ import { SESSION_ROLE_COOKIE, type UserRole } from "@/lib/auth";
 
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "/hauling";
 const publicPaths = ["/login"];
-const driverPaths = ["/driver", "/driver-availability", "/settings"];
+const driverPaths = ["/driver", "/timecard", "/driver-availability", "/settings"];
 const adminRoles: UserRole[] = ["owner", "admin"];
 
 function stripBasePath(pathname: string) {
