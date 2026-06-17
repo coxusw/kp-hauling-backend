@@ -79,6 +79,14 @@ async function findAuthUserByEmail(client: NonNullable<ReturnType<typeof serverC
   return null;
 }
 
+function isKpHaulingAuthUser(user: { app_metadata?: Record<string, unknown>; user_metadata?: Record<string, unknown> } | null) {
+  if (!user) {
+    return false;
+  }
+
+  return user.app_metadata?.kp_hauling === true || user.user_metadata?.kp_hauling === true;
+}
+
 async function clearKpUserReferences(client: NonNullable<ReturnType<typeof serverClient>>, userId: string) {
   await Promise.all([
     client.from("kp_hauling_driver_availability_windows").delete().eq("driver_id", userId),
@@ -130,7 +138,11 @@ export async function POST(request: NextRequest) {
     email,
     password,
     email_confirm: true,
+    app_metadata: {
+      kp_hauling: true
+    },
     user_metadata: {
+      kp_hauling: true,
       name: body.name.trim(),
       role,
       phone: body.phone?.trim() ?? ""
@@ -149,6 +161,10 @@ export async function POST(request: NextRequest) {
     const { data: updatedUser, error: updateError } = await client.auth.admin.updateUserById(existingUser.id, {
       password,
       email_confirm: true,
+      app_metadata: {
+        ...existingUser.app_metadata,
+        kp_hauling: true
+      },
       user_metadata: authUserPayload.user_metadata
     });
     if (updateError || !updatedUser.user) {
@@ -189,6 +205,15 @@ export async function DELETE(request: NextRequest) {
   }
   if (body.userId === currentUserId) {
     return NextResponse.json({ message: "You cannot remove the login you are currently using." }, { status: 400 });
+  }
+
+  const [{ data: profile }, { data: authUserData, error: authFetchError }] = await Promise.all([
+    client.from("kp_hauling_profiles").select("id,email").eq("id", body.userId).maybeSingle(),
+    client.auth.admin.getUserById(body.userId)
+  ]);
+
+  if (!profile && !isKpHaulingAuthUser(authFetchError ? null : authUserData.user)) {
+    return NextResponse.json({ message: "This account is not marked as a KP Hauling login, so it was not removed." }, { status: 400 });
   }
 
   await clearKpUserReferences(client, body.userId);
