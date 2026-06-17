@@ -1,5 +1,5 @@
 import { supabase } from "@/lib/supabase/client";
-import type { DriverCashHandoff, Dumpster, Expense, JobCharge, JobPayment, OwnerNotification, RentalJob } from "@/lib/types";
+import type { DriverCashHandoff, DriverHourlyRate, DriverTimecardEntry, Dumpster, Expense, JobCharge, JobPayment, OwnerNotification, RentalJob } from "@/lib/types";
 
 function cleanTime(value?: string | null) {
   return value ? value.slice(0, 5) : undefined;
@@ -16,6 +16,8 @@ type PaymentRow = Record<string, any>;
 type ExpenseRow = Record<string, any>;
 type HandoffRow = Record<string, any>;
 type NotificationRow = Record<string, any>;
+type DriverRateRow = Record<string, any>;
+type TimecardRow = Record<string, any>;
 
 export function useSupabaseOperations() {
   return Boolean(supabase);
@@ -124,6 +126,28 @@ function mapJob(row: JobRow, charges: JobCharge[], payments: JobPayment[]): Rent
   };
 }
 
+export function mapDriverHourlyRate(row: DriverRateRow): DriverHourlyRate {
+  return {
+    driverId: row.driver_id,
+    hourlyRate: Number(row.hourly_rate ?? 0)
+  };
+}
+
+export function mapDriverTimecard(row: TimecardRow): DriverTimecardEntry {
+  return {
+    id: row.id,
+    driverId: row.driver_id ?? "",
+    driverName: row.driver_name,
+    workDate: row.work_date,
+    startTime: cleanTime(row.start_time) ?? "",
+    endTime: cleanTime(row.end_time) ?? "",
+    note: row.note ?? "",
+    paidAt: row.paid_at ?? undefined,
+    paidAmount: row.paid_amount === null ? undefined : Number(row.paid_amount),
+    createdAt: row.created_at ?? undefined
+  };
+}
+
 export function jobToRow(input: Partial<RentalJob>) {
   return {
     customer_name: input.customerName,
@@ -188,7 +212,9 @@ export async function loadSupabaseOperations() {
     paymentsResult,
     expensesResult,
     handoffsResult,
-    notificationsResult
+    notificationsResult,
+    driverRatesResult,
+    timecardsResult
   ] = await Promise.all([
     supabase.from("kp_hauling_dumpsters").select("*").order("number"),
     supabase.from("kp_hauling_jobs").select("*").order("job_number", { ascending: false }),
@@ -196,7 +222,9 @@ export async function loadSupabaseOperations() {
     supabase.from("kp_hauling_job_payments").select("*").order("payment_date"),
     supabase.from("kp_hauling_expenses").select("*").order("expense_date", { ascending: false }),
     supabase.from("kp_hauling_driver_cash_handoffs").select("*").order("handoff_date", { ascending: false }),
-    supabase.from("kp_hauling_owner_notifications").select("*").order("created_at", { ascending: false })
+    supabase.from("kp_hauling_owner_notifications").select("*").order("created_at", { ascending: false }),
+    supabase.from("kp_hauling_driver_hourly_rates").select("*"),
+    supabase.from("kp_hauling_driver_timecards").select("*").order("work_date", { ascending: false }).order("start_time", { ascending: false })
   ]);
 
   if (dumpstersResult.error) throw dumpstersResult.error;
@@ -242,6 +270,8 @@ export async function loadSupabaseOperations() {
       title: row.title,
       detail: row.detail,
       read: row.read
-    } satisfies OwnerNotification))
+    } satisfies OwnerNotification)),
+    driverHourlyRates: driverRatesResult.error ? [] : (driverRatesResult.data as DriverRateRow[] | null ?? []).map(mapDriverHourlyRate),
+    driverTimecards: timecardsResult.error ? [] : (timecardsResult.data as TimecardRow[] | null ?? []).map(mapDriverTimecard)
   };
 }

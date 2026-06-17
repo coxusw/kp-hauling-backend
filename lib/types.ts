@@ -55,6 +55,24 @@ export type DriverCashHandoff = {
   notes: string;
 };
 
+export type DriverHourlyRate = {
+  driverId: string;
+  hourlyRate: number;
+};
+
+export type DriverTimecardEntry = {
+  id: string;
+  driverId: string;
+  driverName: string;
+  workDate: string;
+  startTime: string;
+  endTime: string;
+  note: string;
+  paidAt?: string;
+  paidAmount?: number;
+  createdAt?: string;
+};
+
 export type Dumpster = {
   id: string;
   number: string;

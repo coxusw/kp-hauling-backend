@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { CalendarPlus, ChevronDown, History, LayoutDashboard, LogOut, PackagePlus, Route, Settings, Truck, UserCog, Users } from "lucide-react";
+import { CalendarPlus, ChevronDown, Clock, History, LayoutDashboard, LogOut, PackagePlus, Route, Settings, Truck, UserCog, Users } from "lucide-react";
 import { AuthProvider, useAuth } from "@/components/auth-provider";
 import { BrandLogo } from "@/components/brand-logo";
 import { canManageOperations, canManageUsers } from "@/lib/auth";
@@ -22,6 +22,7 @@ const adminNavItems = [
 
 const driverNavItems = [
   { href: "/driver", label: "Driver", icon: Truck },
+  { href: "/timecard", label: "Timecard", icon: Clock },
   { href: "/driver-availability", label: "Availability", icon: Users },
   { href: "/settings", label: "Settings", icon: Settings }
 ];
@@ -50,7 +51,7 @@ function ShellContent({ children }: { children: React.ReactNode }) {
       router.replace(auth.currentUser.role === "driver" ? "/driver" : "/");
       return;
     }
-    if (auth.currentUser?.role === "driver" && !["/driver", "/driver-availability", "/settings"].includes(pathname)) {
+    if (auth.currentUser?.role === "driver" && !["/driver", "/timecard", "/driver-availability", "/settings"].includes(pathname)) {
       router.replace("/driver");
     }
     if (auth.currentUser && (pathname === "/users" || pathname === "/drivers") && !canManageUsers(auth.currentUser.role)) {

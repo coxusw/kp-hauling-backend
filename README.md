@@ -42,11 +42,12 @@ Email: admin@kp.local
 Password: admin123
 ```
 
-Owner/admin users can see the full backend and add driver/admin logins from `/users`.
+Owner/admin users can see the full backend and add driver/admin logins from `/drivers`.
 
 Driver users only see:
 
 - `/driver`
+- `/timecard`
 - `/driver-availability`
 
 This login system is for test/demo hosting only. It includes middleware protection for `/hauling/*`, but before production use, replace it with Supabase Auth and database-backed role policies.
@@ -115,9 +116,10 @@ Change that value when you want to review how alerts and calendar buckets respon
 - `/calendar` - today, tomorrow, overdue, and future scheduled work
 - `/availability` - availability by dumpster size
 - `/driver-availability` - driver availability board and driver availability updates
-- `/drivers` - owner/admin driver and admin login management
+- `/drivers` - owner/admin driver and admin login management, cash handoffs, hourly rates, and timecard payouts
 - `/log` - finished job history, totals, expenses, exports, and projections
 - `/driver` - mobile-friendly driver work list with local mark-delivered and mark-picked-up actions
+- `/timecard` - driver-entered work time with required notes and payout history
 
 ## Mobile App And Notifications
 
@@ -151,6 +153,12 @@ If the main setup was already run before custom dumpster sizes existed, run this
 
 ```text
 supabase/kp-hauling-inventory-options.sql
+```
+
+If the main setup was already run before driver timecards existed, run this incremental SQL too:
+
+```text
+supabase/kp-hauling-timecards.sql
 ```
 
 Required Vercel environment variables:

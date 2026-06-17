@@ -1,15 +1,18 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import type { DriverCashHandoff, Dumpster, Expense, OwnerNotification, PaymentStatus, RentalJob, TruckType } from "@/lib/types";
+import type { DriverCashHandoff, DriverHourlyRate, DriverTimecardEntry, Dumpster, Expense, OwnerNotification, PaymentStatus, RentalJob, TruckType } from "@/lib/types";
 import {
   createCharge,
   createDriverCashHandoff,
+  createDriverTimecardEntry,
   createDumpster,
   createExpense,
   createJob,
   createPayment,
   DRIVER_CASH_HANDOFF_STORAGE_KEY,
+  DRIVER_HOURLY_RATE_STORAGE_KEY,
+  DRIVER_TIMECARD_STORAGE_KEY,
   DUMPSTER_STORAGE_KEY,
   EMPTY_DUMPSTERS,
   EMPTY_JOBS,
@@ -18,9 +21,11 @@ import {
   makeId,
   type NewExpenseInput,
   type NewDumpsterInput,
+  type NewDriverTimecardInput,
   type NewJobInput
 } from "@/lib/local-store";
 import { getJobBalance } from "@/lib/data";
+import { getTimecardHours } from "@/lib/timecards";
 import { supabase } from "@/lib/supabase/client";
 import { compactRow, dumpsterToRow, jobToRow, loadSupabaseOperations } from "@/lib/supabase/operations-db";
 
@@ -83,6 +88,8 @@ export function useOperations() {
   const [jobs, setJobs] = useState<RentalJob[]>(EMPTY_JOBS);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [driverCashHandoffs, setDriverCashHandoffs] = useState<DriverCashHandoff[]>([]);
+  const [driverHourlyRates, setDriverHourlyRates] = useState<DriverHourlyRate[]>([]);
+  const [driverTimecards, setDriverTimecards] = useState<DriverTimecardEntry[]>([]);
   const [notifications, setNotifications] = useState<OwnerNotification[]>([]);
   const [loaded, setLoaded] = useState(false);
   const useDb = Boolean(supabase);
@@ -97,6 +104,8 @@ export function useOperations() {
     setJobs(normalizeJobs(snapshot.jobs));
     setExpenses(snapshot.expenses);
     setDriverCashHandoffs(snapshot.driverCashHandoffs);
+    setDriverHourlyRates(snapshot.driverHourlyRates);
+    setDriverTimecards(snapshot.driverTimecards);
     setNotifications(snapshot.notifications);
   }
 
@@ -110,6 +119,8 @@ export function useOperations() {
     setJobs(normalizeJobs(readStored(JOB_STORAGE_KEY, EMPTY_JOBS)));
     setExpenses(readStored(EXPENSE_STORAGE_KEY, []));
     setDriverCashHandoffs(readStored(DRIVER_CASH_HANDOFF_STORAGE_KEY, []));
+    setDriverHourlyRates(readStored(DRIVER_HOURLY_RATE_STORAGE_KEY, []));
+    setDriverTimecards(readStored(DRIVER_TIMECARD_STORAGE_KEY, []));
     setNotifications(readStored("kp-hauling-owner-notifications", []));
     setLoaded(true);
   }, []);
@@ -140,6 +151,18 @@ export function useOperations() {
 
   useEffect(() => {
     if (loaded && !useDb) {
+      window.localStorage.setItem(DRIVER_HOURLY_RATE_STORAGE_KEY, JSON.stringify(driverHourlyRates));
+    }
+  }, [driverHourlyRates, loaded, useDb]);
+
+  useEffect(() => {
+    if (loaded && !useDb) {
+      window.localStorage.setItem(DRIVER_TIMECARD_STORAGE_KEY, JSON.stringify(driverTimecards));
+    }
+  }, [driverTimecards, loaded, useDb]);
+
+  useEffect(() => {
+    if (loaded && !useDb) {
       window.localStorage.setItem("kp-hauling-owner-notifications", JSON.stringify(notifications));
     }
   }, [loaded, notifications, useDb]);
@@ -150,6 +173,8 @@ export function useOperations() {
       jobs,
       expenses,
       driverCashHandoffs,
+      driverHourlyRates,
+      driverTimecards,
       notifications,
       loaded,
       async addDumpster(input: NewDumpsterInput) {
@@ -539,6 +564,105 @@ export function useOperations() {
         }
         setDriverCashHandoffs((current) => [...current, handoff]);
       },
+      async setDriverHourlyRate(driverId: string, hourlyRate: number) {
+        const cleanRate = Math.max(Number(hourlyRate) || 0, 0);
+        if (supabase) {
+          const { error } = await supabase.from("kp_hauling_driver_hourly_rates").upsert({
+            driver_id: driverId,
+            hourly_rate: cleanRate,
+            updated_at: new Date().toISOString()
+          }, { onConflict: "driver_id" });
+          if (error) {
+            window.alert(`Unable to save hourly rate: ${error.message}`);
+            return;
+          }
+          await reloadFromSupabase();
+          return;
+        }
+        setDriverHourlyRates((current) => {
+          const existing = current.some((rate) => rate.driverId === driverId);
+          if (existing) {
+            return current.map((rate) => (rate.driverId === driverId ? { ...rate, hourlyRate: cleanRate } : rate));
+          }
+          return [...current, { driverId, hourlyRate: cleanRate }];
+        });
+      },
+      async addDriverTimecardEntry(driverId: string, driverName: string, input: NewDriverTimecardInput) {
+        const entry = createDriverTimecardEntry(driverId, driverName, input);
+        if (supabase) {
+          const { error } = await supabase.from("kp_hauling_driver_timecards").insert({
+            driver_id: driverId,
+            driver_name: driverName,
+            work_date: entry.workDate,
+            start_time: entry.startTime,
+            end_time: entry.endTime,
+            note: entry.note
+          });
+          if (error) {
+            window.alert(`Unable to add timecard entry: ${error.message}`);
+            return false;
+          }
+          await reloadFromSupabase();
+          return true;
+        }
+        setDriverTimecards((current) => [entry, ...current]);
+        return true;
+      },
+      async payoutDriverTimecards(driverId: string, driverName: string) {
+        const rate = driverHourlyRates.find((item) => item.driverId === driverId)?.hourlyRate ?? 0;
+        const unpaidEntries = driverTimecards.filter((entry) => entry.driverId === driverId && !entry.paidAt);
+        const hours = unpaidEntries.reduce((total, entry) => total + getTimecardHours(entry), 0);
+        const total = hours * rate;
+        if (unpaidEntries.length === 0 || total <= 0) {
+          return false;
+        }
+
+        const paidAt = new Date().toISOString().slice(0, 10);
+        const expenseInput = {
+          date: paidAt,
+          label: `Driver timecard payout - ${driverName}`,
+          amount: total,
+          notes: `${hours.toFixed(2)} hours at $${rate.toFixed(2)}/hr`
+        };
+
+        if (supabase) {
+          const db = supabase;
+          const updateResults = await Promise.all(unpaidEntries.map((entry) =>
+            db.from("kp_hauling_driver_timecards").update({
+              paid_at: paidAt,
+              paid_amount: Number((getTimecardHours(entry) * rate).toFixed(2)),
+              updated_at: new Date().toISOString()
+            }).eq("id", entry.id)
+          ));
+          const failedUpdate = updateResults.find((result) => result.error);
+          if (failedUpdate?.error) {
+            window.alert(`Unable to mark timecard paid: ${failedUpdate.error.message}`);
+            return false;
+          }
+          const { error } = await db.from("kp_hauling_expenses").insert({
+            expense_date: expenseInput.date,
+            label: expenseInput.label,
+            amount: Number(total.toFixed(2)),
+            notes: expenseInput.notes
+          });
+          if (error) {
+            window.alert(`Unable to log payout expense: ${error.message}`);
+            return false;
+          }
+          await reloadFromSupabase();
+          return true;
+        }
+
+        setDriverTimecards((current) =>
+          current.map((entry) =>
+            entry.driverId === driverId && !entry.paidAt
+              ? { ...entry, paidAt, paidAmount: Number((getTimecardHours(entry) * rate).toFixed(2)) }
+              : entry
+          )
+        );
+        setExpenses((current) => [...current, createExpense(expenseInput)]);
+        return true;
+      },
       async deleteExpense(expenseId: string) {
         if (supabase) {
           await supabase.from("kp_hauling_expenses").delete().eq("id", expenseId);
@@ -786,9 +910,11 @@ export function useOperations() {
         setJobs([]);
         setExpenses([]);
         setDriverCashHandoffs([]);
+        setDriverHourlyRates([]);
+        setDriverTimecards([]);
         setNotifications([]);
       }
     }),
-    [driverCashHandoffs, dumpsters, expenses, jobs, loaded, notifications]
+    [driverCashHandoffs, driverHourlyRates, driverTimecards, dumpsters, expenses, jobs, loaded, notifications]
   );
 }

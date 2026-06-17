@@ -1,4 +1,4 @@
-import type { DriverCashHandoff, Dumpster, DumpsterStatus, Expense, JobCharge, JobPayment, PaymentStatus, RentalJob } from "@/lib/types";
+import type { DriverCashHandoff, DriverTimecardEntry, Dumpster, DumpsterStatus, Expense, JobCharge, JobPayment, PaymentStatus, RentalJob } from "@/lib/types";
 
 export const EMPTY_DUMPSTERS: Dumpster[] = [];
 export const EMPTY_JOBS: RentalJob[] = [];
@@ -7,6 +7,8 @@ export const DUMPSTER_STORAGE_KEY = "kp-hauling-dumpsters";
 export const JOB_STORAGE_KEY = "kp-hauling-jobs";
 export const EXPENSE_STORAGE_KEY = "kp-hauling-expenses";
 export const DRIVER_CASH_HANDOFF_STORAGE_KEY = "kp-hauling-driver-cash-handoffs";
+export const DRIVER_HOURLY_RATE_STORAGE_KEY = "kp-hauling-driver-hourly-rates";
+export const DRIVER_TIMECARD_STORAGE_KEY = "kp-hauling-driver-timecards";
 
 export type NewDumpsterInput = {
   number: string;
@@ -42,6 +44,13 @@ export type NewExpenseInput = {
   label: string;
   amount: number;
   notes: string;
+};
+
+export type NewDriverTimecardInput = {
+  workDate: string;
+  startTime: string;
+  endTime: string;
+  note: string;
 };
 
 export function makeId(prefix: string) {
@@ -128,5 +137,18 @@ export function createDriverCashHandoff(driverId: string, driverName: string, am
     driverName,
     amount,
     notes: notes.trim()
+  };
+}
+
+export function createDriverTimecardEntry(driverId: string, driverName: string, input: NewDriverTimecardInput): DriverTimecardEntry {
+  return {
+    id: makeId("timecard"),
+    driverId,
+    driverName,
+    workDate: input.workDate,
+    startTime: input.startTime,
+    endTime: input.endTime,
+    note: input.note.trim(),
+    createdAt: new Date().toISOString()
   };
 }
