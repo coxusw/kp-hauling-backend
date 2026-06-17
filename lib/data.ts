@@ -2,6 +2,7 @@ import { addDays, differenceInCalendarDays, format, isBefore, isSameDay, parseIS
 import { EMPTY_DUMPSTERS, EMPTY_JOBS } from "@/lib/local-store";
 import type { DashboardAlert, Dumpster, DumpsterSize, DumpsterStatus, JobStatus, RentalJob } from "@/lib/types";
 import { activeJobStatuses, getJobEnd, getJobStart } from "@/lib/scheduling";
+import { defaultDumpsterSizes } from "@/lib/inventory-options";
 
 export const TODAY = "2026-06-07";
 
@@ -212,7 +213,7 @@ export function getCalendarBuckets(jobs = getJobs(), today = TODAY) {
 }
 
 export function getAvailabilityBySize(dumpsters = getDumpsters(), jobs = getJobs(), today = TODAY) {
-  const sizes: DumpsterSize[] = ["10 yd", "15 yd", "20 yd", "30 yd"];
+  const sizes: DumpsterSize[] = Array.from(new Set([...defaultDumpsterSizes, ...dumpsters.map((dumpster) => dumpster.size), ...jobs.map((job) => job.dumpsterSize)]));
 
   return sizes.map((size) => {
     const sizeDumpsters = dumpsters.filter((dumpster) => dumpster.size === size);

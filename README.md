@@ -147,6 +147,12 @@ If the main setup was already run before cron reminders existed, run this increm
 supabase/kp-hauling-cron-reminders.sql
 ```
 
+If the main setup was already run before custom dumpster sizes existed, run this incremental SQL too:
+
+```text
+supabase/kp-hauling-inventory-options.sql
+```
+
 Required Vercel environment variables:
 
 - `NEXT_PUBLIC_SUPABASE_URL`

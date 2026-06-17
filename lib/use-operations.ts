@@ -44,6 +44,7 @@ function readStored<T>(key: string, fallback: T): T {
 function normalizeDumpsters(dumpsters: Dumpster[]) {
   return dumpsters.map((dumpster) => ({
     ...dumpster,
+    type: dumpster.type === "Mixed Debris" ? "Garbage" : dumpster.type,
     status: (dumpster.status as string) === "Maintenance" ? "Out of Service" : dumpster.status
   })) as Dumpster[];
 }
@@ -155,6 +156,10 @@ export function useOperations() {
         const newDumpster = createDumpster(input);
         if (supabase) {
           const { data, error } = await supabase.from("kp_hauling_dumpsters").insert(compactRow(dumpsterToRow(newDumpster))).select("*").single();
+          if (error) {
+            window.alert(`Unable to add dumpster: ${error.message}`);
+            return;
+          }
           if (!error && data) {
             await reloadFromSupabase();
             return;
@@ -164,7 +169,11 @@ export function useOperations() {
       },
       async updateDumpster(dumpsterId: string, updates: Partial<Dumpster>) {
         if (supabase) {
-          await supabase.from("kp_hauling_dumpsters").update(compactRow(dumpsterToRow(updates))).eq("id", dumpsterId);
+          const { error } = await supabase.from("kp_hauling_dumpsters").update(compactRow(dumpsterToRow(updates))).eq("id", dumpsterId);
+          if (error) {
+            window.alert(`Unable to update dumpster: ${error.message}`);
+            return;
+          }
           await reloadFromSupabase();
           return;
         }
@@ -187,6 +196,10 @@ export function useOperations() {
         const newJob = createJob(input, dumpsters, jobs);
         if (supabase) {
           const { data, error } = await supabase.from("kp_hauling_jobs").insert(compactRow(jobToRow(newJob))).select("*").single();
+          if (error) {
+            window.alert(`Unable to schedule job: ${error.message}`);
+            return;
+          }
           if (!error && data && newJob.dumpsterId) {
             await supabase.from("kp_hauling_dumpsters").update({
               status: "Scheduled Drop-Off",
@@ -347,6 +360,8 @@ export function useOperations() {
           await supabase.from("kp_hauling_jobs").update(compactRow(jobToRow(jobUpdate))).eq("id", jobId);
           if (targetJob?.dumpsterId && dumpsterUpdate) {
             await supabase.from("kp_hauling_dumpsters").update(compactRow(dumpsterToRow(dumpsterUpdate))).eq("id", targetJob.dumpsterId);
+          } else if (dumpsterUpdate) {
+            await supabase.from("kp_hauling_dumpsters").update(compactRow(dumpsterToRow(dumpsterUpdate))).eq("current_job_id", jobId);
           }
           await reloadFromSupabase();
           return;
@@ -380,6 +395,7 @@ export function useOperations() {
       },
       async completePickupWithDestination(jobId: string, pickupDestinationAddress: string, pickupOneWayMiles?: number, pickupReturnMiles?: number) {
         const destination = pickupDestinationAddress.trim() || "KP yard";
+        const pickupJob = jobs.find((job) => job.id === jobId);
         if (supabase) {
           await supabase.from("kp_hauling_jobs").update({
             status: "Picked Up / Completed",
@@ -388,13 +404,18 @@ export function useOperations() {
             pickup_one_way_miles: pickupOneWayMiles ?? null,
             pickup_return_miles: pickupReturnMiles ?? null
           }).eq("id", jobId);
-          await supabase.from("kp_hauling_dumpsters").update({
+          const dumpsterUpdate = {
             status: "Available",
             current_customer: null,
             current_job_id: null,
             current_location: destination,
             current_address: destination
-          }).eq("current_job_id", jobId);
+          };
+          if (pickupJob?.dumpsterId) {
+            await supabase.from("kp_hauling_dumpsters").update(dumpsterUpdate).eq("id", pickupJob.dumpsterId);
+          } else {
+            await supabase.from("kp_hauling_dumpsters").update(dumpsterUpdate).eq("current_job_id", jobId);
+          }
           await reloadFromSupabase();
           return;
         }
@@ -414,7 +435,7 @@ export function useOperations() {
         );
         setDumpsters((current) =>
           current.map((dumpster) =>
-            dumpster.currentJobId === jobId
+            dumpster.currentJobId === jobId || dumpster.id === pickupJob?.dumpsterId
               ? {
                   ...dumpster,
                   status: "Available",
@@ -685,13 +706,18 @@ export function useOperations() {
             pickup_return_miles: truckType === "Company Truck" ? returnMiles ?? null : pickupJob?.pickupReturnMiles ?? null,
             payment_status: next && getJobBalance(next) <= 0 ? "Paid" : payment ? "Deposit Paid" : pickupJob?.paymentStatus
           }).eq("id", jobId);
-          await supabase.from("kp_hauling_dumpsters").update({
+          const dumpsterUpdate = {
             status: "Available",
             current_customer: null,
             current_job_id: null,
             current_location: destination,
             current_address: destination
-          }).eq("current_job_id", jobId);
+          };
+          if (pickupJob?.dumpsterId) {
+            await supabase.from("kp_hauling_dumpsters").update(dumpsterUpdate).eq("id", pickupJob.dumpsterId);
+          } else {
+            await supabase.from("kp_hauling_dumpsters").update(dumpsterUpdate).eq("current_job_id", jobId);
+          }
           if (payment) {
             await supabase.from("kp_hauling_job_payments").insert({
               job_id: jobId,
@@ -739,7 +765,7 @@ export function useOperations() {
         );
         setDumpsters((current) =>
           current.map((dumpster) =>
-            dumpster.currentJobId === jobId
+            dumpster.currentJobId === jobId || dumpster.id === pickupJob?.dumpsterId
               ? {
                   ...dumpster,
                   status: "Available",

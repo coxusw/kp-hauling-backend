@@ -3,6 +3,7 @@ import { Edit2, MapPin, Save, Trash2 } from "lucide-react";
 import type { Dumpster } from "@/lib/types";
 import { Field, SelectField, TextAreaField } from "@/components/form-fields";
 import { StatusBadge } from "@/components/status-badge";
+import { defaultDumpsterSizes, dumpsterTypes, getDumpsterSizeOptions, normalizeDumpsterSize } from "@/lib/inventory-options";
 
 export function DumpsterCard({
   dumpster,
@@ -23,10 +24,16 @@ export function DumpsterCard({
 }) {
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState<Partial<Dumpster>>(dumpster);
+  const [sizeMode, setSizeMode] = useState(defaultDumpsterSizes.includes(dumpster.size) ? dumpster.size : "Custom");
+  const [customSize, setCustomSize] = useState(defaultDumpsterSizes.includes(dumpster.size) ? "" : dumpster.size);
+  const sizeOptions = getDumpsterSizeOptions([dumpster]);
 
   function saveEdit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    onUpdate?.(dumpster.id, editForm);
+    onUpdate?.(dumpster.id, {
+      ...editForm,
+      size: sizeMode === "Custom" ? normalizeDumpsterSize(customSize) : (editForm.size ?? dumpster.size)
+    });
     setIsEditing(false);
   }
 
@@ -66,17 +73,32 @@ export function DumpsterCard({
         <form onSubmit={saveEdit} className="mt-4 rounded border border-kp-line bg-kp-paper p-3">
           <div className="grid gap-3 sm:grid-cols-2">
             <Field label="Dumpster ID / Number" value={editForm.number ?? ""} onChange={(event) => setEditForm({ ...editForm, number: event.target.value })} />
-            <SelectField label="Size" value={editForm.size ?? dumpster.size} onChange={(event) => setEditForm({ ...editForm, size: event.target.value as Dumpster["size"] })}>
-              <option>10 yd</option>
-              <option>15 yd</option>
-              <option>20 yd</option>
-              <option>30 yd</option>
+            <SelectField
+              label="Size"
+              value={sizeMode}
+              onChange={(event) => {
+                setSizeMode(event.target.value);
+                if (event.target.value !== "Custom") {
+                  setEditForm({ ...editForm, size: event.target.value });
+                }
+              }}
+            >
+              {sizeOptions.map((size) => <option key={size}>{size}</option>)}
+              <option>Custom</option>
             </SelectField>
+            {sizeMode === "Custom" ? (
+              <Field
+                label="Custom Size"
+                value={customSize}
+                onChange={(event) => {
+                  setCustomSize(event.target.value);
+                  setEditForm({ ...editForm, size: normalizeDumpsterSize(event.target.value) });
+                }}
+                placeholder="18 yd, 25 yd, etc."
+              />
+            ) : null}
             <SelectField label="Type" value={editForm.type ?? dumpster.type} onChange={(event) => setEditForm({ ...editForm, type: event.target.value as Dumpster["type"] })}>
-              <option>Roll-off</option>
-              <option>Concrete</option>
-              <option>Yard Waste</option>
-              <option>Mixed Debris</option>
+              {dumpsterTypes.map((type) => <option key={type}>{type}</option>)}
             </SelectField>
             <SelectField label="Status" value={editForm.status ?? dumpster.status} onChange={(event) => setEditForm({ ...editForm, status: event.target.value as Dumpster["status"] })}>
               <option>Available</option>
@@ -84,7 +106,6 @@ export function DumpsterCard({
               <option>Delivered</option>
               <option>Pickup Needed</option>
               <option>Overdue</option>
-              <option>In Transit</option>
               <option>Out of Service</option>
             </SelectField>
             <Field label="Current Location Label" value={editForm.currentLocation ?? ""} onChange={(event) => setEditForm({ ...editForm, currentLocation: event.target.value })} />
@@ -109,6 +130,8 @@ export function DumpsterCard({
           type="button"
           onClick={() => {
             setEditForm(dumpster);
+            setSizeMode(defaultDumpsterSizes.includes(dumpster.size) ? dumpster.size : "Custom");
+            setCustomSize(defaultDumpsterSizes.includes(dumpster.size) ? "" : dumpster.size);
             setIsEditing((current) => !current);
           }}
           className="mt-4 flex min-h-9 items-center gap-2 rounded border border-kp-line bg-white px-3 text-xs font-bold text-stone-700 transition hover:border-kp-green hover:text-kp-green"

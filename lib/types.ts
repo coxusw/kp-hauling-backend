@@ -16,7 +16,7 @@ export type JobStatus =
 
 export type PaymentStatus = "Unpaid" | "Deposit Paid" | "Paid" | "Invoice Sent" | "Past Due";
 
-export type DumpsterSize = "10 yd" | "15 yd" | "20 yd" | "30 yd";
+export type DumpsterSize = string;
 
 export type TruckType = "Company Truck" | "Personal Truck";
 
@@ -59,7 +59,7 @@ export type Dumpster = {
   id: string;
   number: string;
   size: DumpsterSize;
-  type: "Roll-off" | "Concrete" | "Yard Waste" | "Mixed Debris";
+  type: "Roll-off" | "Concrete" | "Yard Waste" | "Garbage" | string;
   status: DumpsterStatus;
   currentLocation: string;
   currentAddress: string;

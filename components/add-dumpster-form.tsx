@@ -5,14 +5,16 @@ import { Plus } from "lucide-react";
 import type { Dumpster } from "@/lib/types";
 import type { NewDumpsterInput } from "@/lib/local-store";
 import { Field, SelectField, TextAreaField } from "@/components/form-fields";
+import { defaultDumpsterSizes, dumpsterTypes, getDumpsterSizeOptions, normalizeDumpsterSize } from "@/lib/inventory-options";
 
 type AddDumpsterFormProps = {
+  dumpsters?: Dumpster[];
   onAdd: (input: NewDumpsterInput) => void;
 };
 
 const initialForm: NewDumpsterInput = {
   number: "",
-  size: "15 yd",
+  size: "14 yd",
   type: "Roll-off",
   status: "Available",
   currentLocation: "KP yard",
@@ -20,11 +22,21 @@ const initialForm: NewDumpsterInput = {
   notes: ""
 };
 
-export function AddDumpsterForm({ onAdd }: AddDumpsterFormProps) {
+export function AddDumpsterForm({ dumpsters = [], onAdd }: AddDumpsterFormProps) {
   const [form, setForm] = useState<NewDumpsterInput>(initialForm);
+  const [sizeMode, setSizeMode] = useState("14 yd");
+  const [customSize, setCustomSize] = useState("");
+  const sizeOptions = getDumpsterSizeOptions(dumpsters);
 
   function update<K extends keyof NewDumpsterInput>(key: K, value: NewDumpsterInput[K]) {
     setForm((current) => ({ ...current, [key]: value }));
+  }
+
+  function updateSize(value: string) {
+    setSizeMode(value);
+    if (value !== "Custom") {
+      update("size", value);
+    }
   }
 
   function submit(event: FormEvent<HTMLFormElement>) {
@@ -32,8 +44,11 @@ export function AddDumpsterForm({ onAdd }: AddDumpsterFormProps) {
     if (!form.number.trim()) {
       return;
     }
-    onAdd(form);
+    const size = sizeMode === "Custom" ? normalizeDumpsterSize(customSize) : form.size;
+    onAdd({ ...form, size });
     setForm(initialForm);
+    setSizeMode(defaultDumpsterSizes[0]);
+    setCustomSize("");
   }
 
   return (
@@ -44,22 +59,28 @@ export function AddDumpsterForm({ onAdd }: AddDumpsterFormProps) {
       </div>
       <div className="grid gap-3 sm:grid-cols-2">
         <Field label="Dumpster ID / Number" value={form.number} onChange={(event) => update("number", event.target.value)} required />
-        <SelectField label="Size" value={form.size} onChange={(event) => update("size", event.target.value as Dumpster["size"])}>
-          <option>10 yd</option>
-          <option>15 yd</option>
-          <option>20 yd</option>
-          <option>30 yd</option>
+        <SelectField label="Size" value={sizeMode} onChange={(event) => updateSize(event.target.value)}>
+          {sizeOptions.map((size) => <option key={size}>{size}</option>)}
+          <option>Custom</option>
         </SelectField>
+        {sizeMode === "Custom" ? (
+          <Field
+            label="Custom Size"
+            value={customSize}
+            onChange={(event) => {
+              setCustomSize(event.target.value);
+              update("size", normalizeDumpsterSize(event.target.value));
+            }}
+            placeholder="18 yd, 25 yd, etc."
+            required
+          />
+        ) : null}
         <SelectField label="Type" value={form.type} onChange={(event) => update("type", event.target.value as Dumpster["type"])}>
-          <option>Roll-off</option>
-          <option>Concrete</option>
-          <option>Yard Waste</option>
-          <option>Mixed Debris</option>
+          {dumpsterTypes.map((type) => <option key={type}>{type}</option>)}
         </SelectField>
         <SelectField label="Status" value={form.status} onChange={(event) => update("status", event.target.value as NewDumpsterInput["status"])}>
           <option>Available</option>
           <option>Out of Service</option>
-          <option>In Transit</option>
         </SelectField>
         <Field label="Current Location Label" value={form.currentLocation} onChange={(event) => update("currentLocation", event.target.value)} />
         <Field

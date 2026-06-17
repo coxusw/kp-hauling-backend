@@ -19,7 +19,7 @@ export default function InventoryPage() {
       {operations.loaded ? (
         <>
           <div className="mb-6">
-            <AddDumpsterForm onAdd={operations.addDumpster} />
+            <AddDumpsterForm dumpsters={operations.dumpsters} onAdd={operations.addDumpster} />
           </div>
 
           <section>

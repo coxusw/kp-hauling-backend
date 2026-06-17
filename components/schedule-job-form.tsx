@@ -22,7 +22,7 @@ function makeInitialForm(): NewJobInput {
     email: "",
     jobAddress: "",
     dumpsterId: "",
-    dumpsterSize: "15 yd",
+    dumpsterSize: "14 yd",
     dropOffDate: today,
     dropOffTime: "08:00",
     rentalLengthDays: 7,

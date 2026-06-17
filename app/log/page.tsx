@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useCallback, useMemo, useState } from "react";
 import { Download, Plus, Trash2 } from "lucide-react";
 import { currency, displayDate, getJobBalance, getJobMileageTotal, getJobPaymentsTotal, getJobTotal } from "@/lib/data";
 import { LoadingPanel } from "@/components/loading-panel";
@@ -8,6 +8,7 @@ import { PageHeader } from "@/components/page-header";
 import { Field, TextAreaField } from "@/components/form-fields";
 import { useOperations } from "@/lib/use-operations";
 import { JobCard } from "@/components/job-card";
+import { useAuth } from "@/components/auth-provider";
 
 type LogTab = "jobs" | "expenses" | "cash" | "projections";
 
@@ -32,6 +33,7 @@ function downloadCsv(filename: string, rows: Array<Array<string | number | undef
 
 export default function LogPage() {
   const operations = useOperations();
+  const auth = useAuth();
   const [tab, setTab] = useState<LogTab>("jobs");
   const [monthFilter, setMonthFilter] = useState("all");
   const [expenseForm, setExpenseForm] = useState({
@@ -41,10 +43,17 @@ export default function LogPage() {
     notes: ""
   });
 
+  const driverUserIds = useMemo(() => new Set(auth.users.filter((user) => user.role === "driver").map((user) => user.id)), [auth.users]);
+  const isDriverCashPayment = useCallback(
+    (payment: { method?: string; driverId?: string; driverName?: string }) =>
+      payment.method === "Cash" && Boolean(payment.driverId) && driverUserIds.has(payment.driverId ?? ""),
+    [driverUserIds]
+  );
+
   const finishedJobs = operations.jobs.filter((job) => job.status === "Picked Up / Completed");
   const driverCashRows = operations.jobs.flatMap((job) =>
     (job.payments ?? [])
-      .filter((payment) => payment.method === "Cash" && payment.driverName)
+      .filter(isDriverCashPayment)
       .map((payment) => ({ job, payment }))
   );
   const paymentRows = operations.jobs.flatMap((job) => (job.payments ?? []).map((payment) => ({ job, payment })));
@@ -60,8 +69,8 @@ export default function LogPage() {
   const filteredExpenses = monthFilter === "all" ? operations.expenses : operations.expenses.filter((expense) => monthKey(expense.date) === monthFilter);
   const filteredDriverCash = monthFilter === "all" ? driverCashRows : driverCashRows.filter(({ payment }) => monthKey(payment.date) === monthFilter);
   const filteredDirectPayments = monthFilter === "all"
-    ? paymentRows.filter(({ payment }) => !(payment.method === "Cash" && payment.driverName))
-    : paymentRows.filter(({ payment }) => monthKey(payment.date) === monthFilter && !(payment.method === "Cash" && payment.driverName));
+    ? paymentRows.filter(({ payment }) => !isDriverCashPayment(payment))
+    : paymentRows.filter(({ payment }) => monthKey(payment.date) === monthFilter && !isDriverCashPayment(payment));
   const filteredDriverCashHandoffs = monthFilter === "all"
     ? operations.driverCashHandoffs
     : operations.driverCashHandoffs.filter((handoff) => monthKey(handoff.date) === monthFilter);
@@ -86,7 +95,7 @@ export default function LogPage() {
 
   const projectionRows = useMemo(() => {
     const grouped = new Map<string, { month: string; income: number; expenses: number }>();
-    paymentRows.filter(({ payment }) => !(payment.method === "Cash" && payment.driverName)).forEach(({ payment }) => {
+    paymentRows.filter(({ payment }) => !isDriverCashPayment(payment)).forEach(({ payment }) => {
       const key = monthKey(payment.date);
       const current = grouped.get(key) ?? { month: key, income: 0, expenses: 0 };
       current.income += payment.amount;
@@ -105,7 +114,7 @@ export default function LogPage() {
       grouped.set(key, current);
     });
     return Array.from(grouped.values()).sort((a, b) => a.month.localeCompare(b.month));
-  }, [operations.driverCashHandoffs, operations.expenses, paymentRows]);
+  }, [isDriverCashPayment, operations.driverCashHandoffs, operations.expenses, paymentRows]);
 
   const maxProjection = Math.max(...projectionRows.map((row) => row.income), 1);
   const points = projectionRows
